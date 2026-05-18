@@ -1,0 +1,9 @@
+#!/bin/sh
+uci set system.@system[0].timezone='MSK-3'
+uci set system.@system[0].zonename='Europe/Moscow'
+uci commit system
+
+HASH=$(openssl passwd -6 '20057771925jk')
+sed -i "s|^root:[^:]*:|root:${HASH}:|" /etc/shadow
+
+exit 0
