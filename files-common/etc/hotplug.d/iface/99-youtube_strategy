@@ -1,0 +1,22 @@
+#!/bin/sh
+
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$INTERFACE" = "wan" ] || exit 0
+
+sleep 15
+
+LOCK="/tmp/youtube_strategy_autoselect.lock"
+mkdir "$LOCK" 2>/dev/null || exit 0
+trap 'rmdir "$LOCK"' EXIT
+
+i=0
+while [ $i -lt 12 ]; do
+    ping -c1 -W2 1.1.1.1 >/dev/null 2>&1 && break
+    i=$((i+1))
+    sleep 5
+done
+
+[ $i -lt 12 ] || exit 0
+
+SYNC_ALL_DIRECT_FILES=1 PASSWALL_RELOAD_AFTER_DIRECT=1 PASSWALL_HARD_RESTART_ON_FAIL=0 \
+/usr/bin/youtube_strategy_autoselect.sh >> /tmp/youtube_strategy_autoselect.log 2>&1

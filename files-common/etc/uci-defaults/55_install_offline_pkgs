@@ -1,0 +1,26 @@
+#!/bin/sh
+PKGDIR="/usr/lib/offline_pkgs"
+LOG="/tmp/atlanta_install.log"
+
+date > "$LOG"
+echo "Offline install start" >> "$LOG"
+
+[ -d "$PKGDIR" ] || { echo "no pkgdir" >> "$LOG"; exit 0; }
+
+ls "$PKGDIR" >> "$LOG"
+
+for tgz in "$PKGDIR"/*.tar.gz; do
+    [ -f "$tgz" ] || continue
+    echo "extract: $tgz" >> "$LOG"
+    tar xzf "$tgz" -C / >> "$LOG" 2>&1
+done
+
+for apk in "$PKGDIR"/*.apk; do
+    [ -f "$apk" ] || continue
+    echo "apk add: $apk" >> "$LOG"
+    apk add --allow-untrusted "$apk" >> "$LOG" 2>&1
+done
+
+rm -rf "$PKGDIR"
+echo "Done" >> "$LOG"
+exit 0

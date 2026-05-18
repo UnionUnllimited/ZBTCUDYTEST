@@ -1,0 +1,2 @@
+0 3 * * * /usr/bin/youtube_strategy_autoselect.sh >/tmp/yt_select.log 2>&1
+0 4 * * * lua /usr/share/passwall/subscribe.lua >>/tmp/atl_panel_passwall_update.log 2>&1
