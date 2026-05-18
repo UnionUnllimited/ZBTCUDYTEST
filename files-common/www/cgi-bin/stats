@@ -32,4 +32,4 @@ frpc_running=false; pgrep -f frpc >/dev/null 2>&1 && frpc_running=true
 printf '{"mac":"%s","board":"%s","fw":"%s","uptime_sec":%s,"load":%s,"cpu_pct":%s,"ram":{"total_kb":%s,"used_kb":%s,"pct":%s},"temp_c":%s,"network":{"wan_ip":"%s","vpn_ip":"%s","rx_bytes":%s,"tx_bytes":%s},"clients":{"wifi":%s,"dhcp":%s},"vpn_active":%s,"bypass_on":%s,"frpc_running":%s,"ts":%s}\n' "$mac" "$board" "$fw" "$uptime_sec" "$load" "$cpu_pct" "$mem_total" "$mem_used" "$ram_pct" "$temp" "$wan_ip" "$vpn_ip" "$rx_bytes" "$tx_bytes" "$wifi_clients" "$dhcp_clients" "$vpn_running" "$bypass_on" "$frpc_running" "$(date +%s)"
 EOF
 chmod +x /www/cgi-bin/stats
-wget -q -O - http://127.0.0.1/cgi-bin/stats
+wget -q --timeout=10 -O - http://127.0.0.1/cgi-bin/stats | head -c 100
