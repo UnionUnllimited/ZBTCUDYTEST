@@ -7,6 +7,8 @@ on:
       - 'files-common/**'
       - 'files-zbt/**'
       - 'files-cudy/**'
+      - 'files-wr3000s/**'
+      - 'files-wr3000e/**'
       - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
@@ -39,6 +41,14 @@ jobs:
             name: Cudy-TR3000
             files_device: files-cudy
             extra_packages: "kmod-usb3 kmod-usb-storage block-mount kmod-fs-ext4 kmod-fs-vfat"
+          - device: cudy_wr3000s-v1
+            name: Cudy-WR3000S
+            files_device: files-wr3000s
+            extra_packages: ""
+          - device: cudy_wr3000e-v1
+            name: Cudy-WR3000E
+            files_device: files-wr3000e
+            extra_packages: ""
 
     steps:
       - name: Checkout
@@ -107,7 +117,7 @@ jobs:
                   gz.read()
               pos = buf.tell()
           except Exception as e:
-              print(f"  first stream read error: {e}")
+              print(f"  first stream: {e}")
               pos = 0
 
           stream_data = data[pos:] if pos > 0 and pos < len(data) else data
