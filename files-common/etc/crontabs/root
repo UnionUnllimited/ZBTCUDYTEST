@@ -1,2 +1,8 @@
-0 3 * * * /usr/bin/youtube_strategy_autoselect.sh >/tmp/yt_select.log 2>&1
-0 4 * * * lua /usr/share/passwall/subscribe.lua >>/tmp/atl_panel_passwall_update.log 2>&1
+# VPN watchdog каждые 10 минут
+*/10 * * * * /usr/bin/vpn_watchdog.sh
+# DNS watchdog каждые 5 минут
+*/5 * * * * /usr/bin/dns_watchdog.sh
+# Обновление подписки каждый день в 4:00
+0 4 * * * SUB=$(uci get passwall.@subscribe_list[0].url 2>/dev/null); [ -n "$SUB" ] && /usr/bin/apply_sub.sh "$SUB"
+# Перезагрузка раз в неделю в воскресенье 3:00
+0 3 * * 0 reboot
