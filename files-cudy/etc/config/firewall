@@ -128,3 +128,16 @@ config include 'passwall_server'
 	option path '/var/etc/passwall_server.include'
 	option reload '1'
 
+config rule
+	option name 'Block-SSH-WAN'
+	option src 'wan'
+	option proto 'tcp'
+	option dest_port '22'
+	option target 'DROP'
+
+config rule
+	option name 'Block-HTTP-WAN'
+	option src 'wan'
+	option proto 'tcp'
+	option dest_port '80 443'
+	option target 'DROP'
