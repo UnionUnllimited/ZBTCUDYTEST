@@ -3,9 +3,8 @@ uci set system.@system[0].timezone='MSK-3'
 uci set system.@system[0].zonename='Europe/Moscow'
 uci commit system
 
-# Генерируем уникальный пароль по MAC
 MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
-PASS=$(echo "${MAC}atl2025secret" | sha256sum | cut -c1-16)
+PASS=$(echo "${MAC}__PASS_SALT__" | sha256sum | cut -c1-16)
 HASH=$(openssl passwd -6 "$PASS")
 sed -i "s|^root:[^:]*:|root:${HASH}:|" /etc/shadow
 
