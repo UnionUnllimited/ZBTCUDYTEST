@@ -1,0 +1,32 @@
+#!/bin/sh
+# Atlanta Router — Reset Button
+# < 3 сек  → перезагрузка
+# >= 3 сек → сброс Wi-Fi на Atlanta-2.4/Atlanta-5/11111111 + панель admin/admin
+[ "$BUTTON" = "reset" ] || exit 0
+if [ "$ACTION" = "released" ]; then
+  if [ "${SEEN:-0}" -ge 3 ]; then
+    logger -t atlanta "СБРОС: Wi-Fi + панель до заводских"
+    CFG="/etc/config/atl_panel"
+    [ -f "$CFG" ] && sed -i "s|^[[:space:]]*option user .*|  option user 'admin'|" "$CFG"
+    [ -f "$CFG" ] && sed -i "s|^[[:space:]]*option pass .*|  option pass 'admin'|" "$CFG"
+    uci -q set atl_panel.main.user='admin' 2>/dev/null || true
+    uci -q set atl_panel.main.pass='admin' 2>/dev/null || true
+    uci -q commit atl_panel 2>/dev/null || true
+    rm -f /tmp/atl_panel_sid 2>/dev/null || true
+    uci -q set wireless.default_radio0.ssid='Atlanta-2.4'
+    uci -q set wireless.default_radio0.encryption='psk2'
+    uci -q set wireless.default_radio0.key='11111111'
+    uci -q set wireless.default_radio0.disabled='0'
+    uci -q get wireless.radio1.type >/dev/null 2>&1 && {
+      uci -q set wireless.default_radio1.ssid='Atlanta-5'
+      uci -q set wireless.default_radio1.encryption='psk2'
+      uci -q set wireless.default_radio1.key='11111111'
+      uci -q set wireless.default_radio1.disabled='0'
+    }
+    uci -q commit wireless
+    sleep 1; reboot
+  else
+    logger -t atlanta "Перезагрузка по кнопке reset"
+    sleep 1; reboot
+  fi
+fi
