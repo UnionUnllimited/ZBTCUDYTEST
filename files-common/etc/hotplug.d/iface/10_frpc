@@ -1,5 +1,0 @@
-#!/bin/sh
-[ "$ACTION" = "ifup" ] || exit 0
-[ "$INTERFACE" = "wan" ] || exit 0
-sleep 3
-pgrep -f "frpc -c" >/dev/null 2>&1 || /etc/init.d/frpc start
