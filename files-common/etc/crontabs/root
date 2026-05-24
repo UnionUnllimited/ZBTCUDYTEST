@@ -2,7 +2,9 @@
 */10 * * * * /usr/bin/vpn_watchdog.sh
 # DNS watchdog каждые 5 минут
 */5 * * * * /usr/bin/dns_watchdog.sh
-# Обновление подписки каждый день в 4:00
-0 4 * * * SUB=$(uci get passwall.@subscribe_list[0].url 2>/dev/null); [ -n "$SUB" ] && /usr/bin/apply_sub.sh "$SUB"
-# Перезагрузка раз в неделю в воскресенье 3:00
-0 3 * * 0 reboot
+# FRP watchdog каждые 5 минут (проверяет сервер и переключает если нужно)
+*/5 * * * * /usr/bin/frpc_watchdog.sh
+# Проверка обновлений каждый день в 3:00
+0 3 * * * /usr/bin/update_all.sh all
+# Перезагрузка раз в неделю в воскресенье 4:00
+0 4 * * 0 reboot
