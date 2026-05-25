@@ -136,12 +136,6 @@ config rule
 	option dest_port '22'
 	option target 'DROP'
 
-config rule
-	option name 'Block-SSH-LAN'
-	option src 'lan'
-	option proto 'tcp'
-	option dest_port '22'
-	option target 'DROP'
 
 config rule
 	option name 'Block-HTTP-WAN'
