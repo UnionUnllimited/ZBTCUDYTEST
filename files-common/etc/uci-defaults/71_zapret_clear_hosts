@@ -1,0 +1,4 @@
+#!/bin/sh
+: > /opt/zapret/ipset/zapret-hosts-user.txt
+: > /opt/zapret/ipset/zapret-hosts-user-exclude.txt
+exit 0

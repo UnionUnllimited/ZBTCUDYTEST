@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Content-Type: text/plain"
+echo "Access-Control-Allow-Origin: *"
+echo ""
+KEY="cvf302K1xnhvA267DvNjO8n4ta8P6y7g"
+IV="$(openssl rand -hex 8)"
+MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
+KEY_HEX=$(printf '%s' "$KEY" | od -A n -t x1 | tr -d ' \n' | head -c 64)
+ENCRYPTED=$(printf '%s' "$MAC" | openssl enc -aes-256-cbc \
+  -K "$KEY_HEX" -iv "$IV" -nosalt -base64 2>/dev/null | tr -d '\n')
+printf '%s:%s' "$IV" "$ENCRYPTED"

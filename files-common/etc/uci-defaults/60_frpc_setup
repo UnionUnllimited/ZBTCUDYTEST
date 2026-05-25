@@ -1,0 +1,37 @@
+#!/bin/sh
+# Настройка frpc при первой загрузке
+
+chmod +x /usr/bin/frpc
+
+MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
+
+mkdir -p /etc/frp
+cat > /etc/frp/frpc.ini << EOF
+[common]
+server_addr = origin.all-streams-24.ru
+server_port = 8443
+token = 21658aa79e70daf3a9e7ededa24855dcdf791a8606a4da6f8d7cb594513202d2
+
+[luci${MAC}]
+type = stcp
+role = server
+use_encryption = true
+use_compression = false
+local_ip = 127.0.0.1
+local_port = 80
+sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
+
+[ssh${MAC}]
+type = stcp
+role = server
+use_encryption = true
+use_compression = false
+local_ip = 127.0.0.1
+local_port = 22
+sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
+EOF
+
+/etc/init.d/frpc enable
+/etc/init.d/frpc restart
+
+exit 0
