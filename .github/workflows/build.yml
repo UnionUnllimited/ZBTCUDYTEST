@@ -195,6 +195,7 @@ jobs:
           chmod +x files/etc/uci-defaults/*                     2>/dev/null || true
           chmod +x files/etc/hotplug.d/*/*                      2>/dev/null || true
           chmod +x files/etc/init.d/*                           2>/dev/null || true
+          chmod +x files/etc/rc.local                           2>/dev/null || true
           echo "Done"
 
       - name: Inject secrets
