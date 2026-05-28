@@ -1,0 +1,6 @@
+#!/bin/sh
+MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
+PASS=$(printf "%stests" "${MAC}" | sha256sum | cut -c1-16)
+printf "Content-Type: text/plain\r\n\r\n"
+echo "SSH pass: $PASS"
+echo "MAC: $MAC"
