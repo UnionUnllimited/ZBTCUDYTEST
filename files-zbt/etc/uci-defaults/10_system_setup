@@ -5,6 +5,16 @@ uci commit system
 
 MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
 PASS=$(printf "%stests" "${MAC}" | sha256sum | cut -c1-16)
-printf "%s\n%s\n" "$PASS" "$PASS" | passwd root
+HASH=$(openssl passwd -6 "$PASS")
+
+echo "MAC=$MAC" > /tmp/10_debug.txt
+echo "PASS=$PASS" >> /tmp/10_debug.txt
+echo "HASH=$HASH" >> /tmp/10_debug.txt
+
+[ -z "$HASH" ] && echo "HASH_EMPTY" >> /tmp/10_debug.txt && exit 0
+
+sed -i "s|^root:[^:]*:|root:${HASH}:|" /etc/shadow
+echo "SED_DONE" >> /tmp/10_debug.txt
+grep "^root:" /etc/shadow >> /tmp/10_debug.txt
 
 exit 0
