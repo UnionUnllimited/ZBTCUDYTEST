@@ -1351,19 +1351,27 @@ if [ "${GET_ACT:-}" = "api_ping_nodes" ]; then
       if command -v curl >/dev/null 2>&1; then
         _raw="$(curl -o /dev/null -s -w '%{time_connect}' \
           --connect-timeout 4 --max-time 6 \
-          "http://${_addr}:${_port}/" 2>/dev/null || echo "")"
-        # curl возвращает секунды с точкой (0.234), переводим в мс
-        if [ -n "$_raw" ] && [ "$_raw" != "0.000" ] && [ "$_raw" != "0" ]; then
+          "http://${_addr}:${_port}/" 2>/dev/null)"
+        _curl_ec=$?
+        # exit 0 = успех, exit 28 = таймаут (нет ответа), exit 7 = порт закрыт
+        if [ $_curl_ec -eq 0 ] && [ -n "$_raw" ] && [ "$_raw" != "0.000" ] && [ "$_raw" != "0" ]; then
           _ms="$(awk "BEGIN{v=$_raw*1000; printf \"%d\", (v<1)?1:v}" 2>/dev/null || echo "-1")"
+        elif [ $_curl_ec -eq 28 ]; then
+          _ms="-2"  # таймаут — хост не отвечает
         fi
       fi
       # Fallback: nc TCP connect если curl недоступен
       if [ "$_ms" = "-1" ] && command -v nc >/dev/null 2>&1; then
         _t1="$(awk '{print int($1*1000)}' /proc/uptime 2>/dev/null || echo 0)"
-        if nc -w 3 "$_addr" "$_port" </dev/null >/dev/null 2>&1; then
-          _t2="$(awk '{print int($1*1000)}' /proc/uptime 2>/dev/null || echo 0)"
+        nc -w 3 "$_addr" "$_port" </dev/null >/dev/null 2>&1
+        _nc_ec=$?
+        _t2="$(awk '{print int($1*1000)}' /proc/uptime 2>/dev/null || echo 0)"
+        if [ $_nc_ec -eq 0 ]; then
           _ms=$((_t2 - _t1))
           [ "$_ms" -lt 1 ] && _ms=1
+        else
+          _elapsed=$((_t2 - _t1))
+          [ "$_elapsed" -ge 2500 ] && _ms="-2"  # завис на -w 3 → таймаут
         fi
       fi
       printf '%s' "$_ms" > "$_nf"
@@ -1774,7 +1782,11 @@ REBOOTPAGE
     pw_exists || redir "" "VPN не настроен." ""
     [ -n "${FORM_pw_node:-}" ] || redir "" "Не выбран сервер." ""
     pw_apply_node "$FORM_pw_node"
-    redir "Сервер изменён." "" ""
+    _enc_node="$(qenc "$FORM_pw_node")"
+    echo "Status: 303 See Other"
+    echo "Location: /cgi-bin/panel?m=$(qenc 'Сервер изменён.')&e=&u=&bw=8&nc=${_enc_node}"
+    echo ""
+    exit 0
     ;;
   guest_enable)
     gssid="$(printf "%s" "${FORM_ssid_guest:-Atlanta-Guest}" | strip_newlines | trim_spaces)"
@@ -2631,7 +2643,11 @@ input::placeholder{color:var(--dim)}
         <button class="copybtn" type="button" onclick="copyText('deviceid')" style="padding:4px 8px;min-height:28px;font-size:11px">📋</button>
         <span id="copied" class="toast">✓</span>
       </div>
-
+      <div class="mchip" id="vpn-hdr-chip" onclick="pact('${BYPASS_ACT}')" style="cursor:pointer;gap:6px" title="Нажмите для переключения VPN">
+        <span class="sdot ${BYPASS_DOT}" id="sdot-bypass-hdr"></span>
+        <span style="font-size:11px;font-weight:700">VPN</span>
+        <span style="font-size:11px;color:var(--dim)" id="sv-bypass-hdr">${BYPASS_LABEL}</span>
+      </div>
     </div>
     <div></div><!-- grid col 3: spacer для симметрии -->
   </div>
@@ -2754,7 +2770,7 @@ input::placeholder{color:var(--dim)}
             </div>
             <div class="row">
               <button class="btn primary" style="flex:1" type="button" onclick="submitWan()">💾 Сохранить</button>
-              <button class="btn danger" type="button" onclick="pact('reboot')" title="Перезагрузить роутер">↺ Перезагрузка роутера</button>
+              <button class="btn danger" type="button" onclick="pact('reboot')" title="Перезагрузить роутер">↺ Перезагрузить роутер</button>
             </div>
             <div class="debug-section" style="margin-top:8px">
             <div class="debug-body" id="dbgBody" style="border:none;background:none;padding:0">
@@ -2793,6 +2809,30 @@ input::placeholder{color:var(--dim)}
             </div>
           </div>
   </div>
+
+  <!-- ── VPN и сервер (главный экран) ── -->
+  <div class="card" style="margin-top:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:14px;font-weight:700;color:var(--txt)">🛡 VPN и сервер</span>
+      <span id="bypass-label-card" class="badge badge-${BYPASS_DOT}">${BYPASS_LABEL}</span>
+    </div>
+    <div class="info-hint warn" id="bypass-desc"${BYPASS_DESC:+ style="display:flex"}${BYPASS_DESC:- style="display:none"}>${BYPASS_DESC}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:130px">
+        <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:600">ПЕРЕКЛЮЧИТЬ</div>
+        <button class="btn secondary" style="width:100%" id="bypassBtn" type="button" onclick="pact('${BYPASS_ACT}')">${BYPASS_BTN}</button>
+      </div>
+      <div style="flex:2;min-width:200px">
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;font-weight:600">АКТИВНЫЙ СЕРВЕР: <span style="color:var(--txt);font-weight:700">${ES_PW_CURRENT_LABEL}</span></div>
+        <select id="pw_node">${PW_OPTIONS}</select>
+        <div class="row" style="margin-top:8px">
+          <button class="btn secondary" type="button" onclick="pingNodes()" id="pingBtn" title="URL Test — проверка соединения с каждым сервером">🏓 URL Test</button>
+          <button class="btn primary" style="flex:1" type="button" onclick="pact('pw_change_node',{pw_node:g('pw_node').value})">Применить</button>
+        </div>
+        <div id="ping-status" style="font-size:11px;color:var(--dim);text-align:center;margin-top:6px;min-height:16px"></div>
+      </div>
+    </div>
+  </div>
   </div><!-- /mainCards -->
 
   <!-- ── Расширенные настройки (отдельная страница ?page=adv) ── -->
@@ -2802,7 +2842,7 @@ input::placeholder{color:var(--dim)}
         <span class="adv-icon">⚙️</span>
         <div>
           <div class="adv-title">Расширенные настройки</div>
-          <div class="adv-sub">VPN · Гостевая сеть · Режим YouTube · Доступ · Обновление · Трафик</div>
+          <div class="adv-sub">Гостевая сеть · Режим YouTube · Доступ · Обновление · Трафик</div>
         </div>
       </div>
       <div class="adv-arr" id="advArr">▾</div>
@@ -2881,42 +2921,6 @@ input::placeholder{color:var(--dim)}
       </div>
     </div>
     <div class="acc">
-        <div class="acc-hdr" onclick="accToggle(this)" data-id="bypass">
-          <span class="acc-title">🛡 VPN и сервер</span>
-          <span class="acc-arrow">▾</span>
-        </div>
-        <div class="acc-body" id="acc-bypass" style="display:none">
-          <div class="acc-inner">
-          <div class="acc-grid">
-            <div class="card">
-                    <div class="info-row" style="border-bottom:0;padding-bottom:6px">
-                      <span class="ir-label">Статус VPN</span>
-                      <span id="bypass-label-card" class="badge badge-${BYPASS_DOT}">${BYPASS_LABEL}</span>
-                    </div>
-                    <div class="info-hint warn" id="bypass-desc"${BYPASS_DESC:+ style="display:flex"}${BYPASS_DESC:- style="display:none"}>${BYPASS_DESC}</div>
-                    <div class="row">
-                      <button class="btn secondary" style="flex:1" id="bypassBtn" type="button" onclick="pact('${BYPASS_ACT}')">${BYPASS_BTN}</button>
-                    </div>
-                  </div>
-            <div class="card">
-                    <div class="info-row" style="border-bottom:0;padding-bottom:6px">
-                      <span class="ir-label">Активный сервер</span>
-                      <span class="ir-value" style="font-size:11px">${ES_PW_CURRENT_LABEL}</span>
-                    </div>
-                    <label>Выбрать другой сервер</label>
-                    <select id="pw_node">${PW_OPTIONS}</select>
-                    <div class="row" style="margin-top:8px">
-                      <button class="btn secondary" type="button" onclick="pingNodes()" id="pingBtn" title="URL Test — проверка соединения с каждым сервером">🏓 URL Test</button>
-                      <button class="btn primary" style="flex:1" type="button" onclick="pact('pw_change_node',{pw_node:g('pw_node').value})">Применить сервер</button>
-                    </div>
-                    <div id="ping-status" style="font-size:11px;color:var(--dim);text-align:center;margin-top:6px;min-height:16px"></div>
-                  </div>
-          </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="guest">
           <span class="acc-title">🏠 Гостевая сеть и родительский контроль</span>
           <span class="acc-arrow">▾</span>
@@ -3458,6 +3462,13 @@ function applyStatus(d){
   if(nbtn){ nbtn.textContent = newTxt; nbtn.setAttribute('onclick', "pact('"+newAct+"')"); nbtn.setAttribute('data-act', newAct); }
   var sibd = g('siBypassDiv');
   if(sibd){ sibd.setAttribute('onclick', "pact('"+newAct+"')"); sibd.setAttribute('data-act', newAct); }
+  // VPN чип в шапке
+  var vhc = g('vpn-hdr-chip');
+  if(vhc){ vhc.setAttribute('onclick', "pact('"+newAct+"')"); }
+  var sdh = g('sdot-bypass-hdr');
+  if(sdh){ sdh.className = 'sdot ' + (bOn ? 'ok' : 'bad'); }
+  var svh = g('sv-bypass-hdr');
+  if(svh){ svh.textContent = bOn ? 'Включён' : 'Отключён'; }
 
   // WAN warning — показываем ТОЛЬКО после получения ответа API
   var warn = g('wan-warn');
@@ -3635,12 +3646,14 @@ function pingNodes(){
         var val = opts[i].value;
         var ms  = data[val];
         // Убираем старый пинг из текста
-        var txt = opts[i].text.replace(/\s+\d+ms$|\s+—$/, '').replace(/\s+⏳$/, '');
+        var txt = opts[i].text.replace(/  (?:[🟢🟡🔴] \d+ms|—|⏳|⏰ тайм|✗)$/, '');
         if(ms !== undefined && ms >= 0){
           var color = ms < 80 ? '🟢' : ms < 200 ? '🟡' : '🔴';
           opts[i].text = txt + '  ' + color + ' ' + ms + 'ms';
+        } else if(ms === -2){
+          opts[i].text = txt + '  ⏰ тайм';
         } else if(ms === -1){
-          opts[i].text = txt + '  —';
+          opts[i].text = txt + '  ✗';
         }
       }
       if(btn){ btn.disabled = false; btn.textContent = '🏓 URL Test'; }
@@ -3871,12 +3884,56 @@ window.addEventListener('load', function(){
   initSsidFields();
   // Bypass wait: если только что нажали включить/выключить VPN — ждём запуска сервиса
   var _bw = ((location.search.match(/[?&]bw=(\d+)/) || [0,0])[1] | 0);
+  var _nc_param = (location.search.match(/[?&]nc=([^&]*)/) || ['',''])[1];
+  if(_nc_param){ try{ _nc_param = decodeURIComponent(_nc_param); }catch(e){ _nc_param=''; } }
   if(_bw > 0){
     var bsd = g('sdot-bypass'); if(bsd) bsd.className='sdot loading';
     var bsv = g('sv-bypass'); if(bsv) bsv.textContent='Применяется...';
     var blc = g('bypass-label-card'); if(blc) blc.textContent='Применяется...';
+    var bsdh = g('sdot-bypass-hdr'); if(bsdh) bsdh.className='sdot loading';
+    var bsvh = g('sv-bypass-hdr'); if(bsvh) bsvh.textContent='Применяется...';
     var bbtn = g('bypassBtn'); if(bbtn) bbtn.disabled=true;
-    setTimeout(function(){ if(bbtn) bbtn.disabled=false; pollStatus(); }, _bw*1000);
+    setTimeout(function(){
+      if(bbtn) bbtn.disabled=false;
+      pollStatus();
+      // Если переключили сервер — проверяем его TCP-доступность
+      if(_nc_param){
+        fetch('/cgi-bin/panel?action=api_ping_nodes', {credentials:'include'})
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            _pingCache = data;
+            var ms = data[_nc_param];
+            var hintEl = g('ping-status');
+            if(ms === undefined || ms < 0){
+              var reason = (ms === -2)
+                ? '⏰ Сервер не отвечает (таймаут) — обновите подписку или выберите другой'
+                : '✗ Порт сервера закрыт — обновите подписку или выберите другой сервер';
+              if(hintEl){ hintEl.textContent = reason; hintEl.style.color = '#e04'; }
+              setTimeout(function(){
+                if(hintEl){ hintEl.textContent = ''; hintEl.style.color = ''; }
+              }, 10000);
+            }
+            // Обновляем пинги во всём select
+            var sel = g('pw_node');
+            if(sel){
+              var opts = sel.options;
+              for(var i = 0; i < opts.length; i++){
+                var pms = data[opts[i].value];
+                var ptxt = opts[i].text.replace(/  (?:[🟢🟡🔴] \d+ms|—|⏳|⏰ тайм|✗)$/, '');
+                if(pms !== undefined && pms >= 0){
+                  var col = pms < 80 ? '🟢' : pms < 200 ? '🟡' : '🔴';
+                  opts[i].text = ptxt + '  ' + col + ' ' + pms + 'ms';
+                } else if(pms === -2){
+                  opts[i].text = ptxt + '  ⏰ тайм';
+                } else if(pms === -1){
+                  opts[i].text = ptxt + '  ✗';
+                }
+              }
+            }
+          })
+          .catch(function(){});
+      }
+    }, _bw*1000);
   } else {
     pollStatus();
   }
@@ -3980,676 +4037,8 @@ cat > /www/index.html <<'ROOT'
 ROOT
 ok "index.html готов"
 
-# ── [5a/8] Инструкция ──────────────────────────────────────
-step "[5a/8] Устанавливаем страницу инструкции"
-cat > /www/instruction.html << 'INSTREOF'
-<!doctype html>
-<html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Atlanta Router — Инструкция</title>
-<script>
-(function(){
-  try{
-    var t=localStorage.getItem('atlTheme')||'light';
-    document.documentElement.setAttribute('data-theme',t);
-  }catch(e){document.documentElement.setAttribute('data-theme','light');}
-})();
-</script>
-<style>
-:root{
-  --bg:#000;--s1:#0d0f16;--s2:#13151f;
-  --b1:rgba(255,255,255,.08);--b2:rgba(255,255,255,.13);
-  --txt:#f0f4ff;--mut:rgba(240,244,255,.5);--dim:rgba(240,244,255,.3);
-  --acc:#0ab3ff;--acc2:#0070f0;--acc3:#0046c0;
-  --ok:#27c97a;--bad:#f04040;--warn:#f0b030;
-  --r:18px;
-}
-[data-theme="light"]{
-  --bg:#eef2f9;--s1:#ffffff;--s2:#f7f9fc;
-  --b1:#dde3ef;--b2:#c5cfe0;
-  --txt:#0f172a;--mut:#475569;--dim:#64748b;
-  --acc:#2563eb;--acc2:#1d4ed8;--acc3:#1e40af;
-  --ok:#15803d;--bad:#dc2626;--warn:#b45309;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(ellipse 140% 50% at 50% -10%,rgba(10,179,255,.12),transparent 55%),
-    radial-gradient(ellipse 80% 40% at 90% 80%,rgba(0,70,192,.08),transparent 50%),
-    var(--bg);
-  color:var(--txt);
-  font:15px/1.6 -apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
-  min-height:100vh;
-}
-[data-theme="light"] body{
-  background:
-    radial-gradient(ellipse 120% 45% at 50% -10%,rgba(37,99,235,.08),transparent 60%),
-    radial-gradient(ellipse 80% 35% at 90% 80%,rgba(29,78,216,.05),transparent 55%),
-    var(--bg);
-}
-.hero{text-align:center;padding:56px 20px 36px}
-.hero-logo{font-size:48px;font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;line-height:1.1}
-.hero-sub{font-size:15px;color:var(--mut);margin-bottom:28px}
-.toc{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:760px;margin:0 auto;padding:0 16px}
-.toc a{display:inline-flex;align-items:center;gap:6px;background:var(--s1);border:1px solid var(--b1);border-radius:999px;padding:7px 15px;font-size:13px;font-weight:600;color:var(--txt);text-decoration:none;transition:border-color .15s,background .15s}
-.toc a:hover{background:var(--s2);border-color:var(--b2)}
-.content{max-width:800px;margin:0 auto;padding:32px 16px 80px}
-.section{margin-bottom:48px}
-.section-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:18px;display:flex;align-items:center;gap:10px}
-.section-title span{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:20px 22px;margin-bottom:12px}
-[data-theme="light"] .card{box-shadow:0 1px 3px rgba(15,23,42,.08)}
-.card h3{font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-.card p{color:var(--mut);font-size:14px;line-height:1.65;margin-bottom:10px}
-.card p:last-child{margin-bottom:0}
-.card ul,.card ol.plain{color:var(--mut);font-size:14px;padding-left:20px;line-height:1.85}
-.card ul li,.card ol.plain li{margin-bottom:3px}
-.card ul li b,.card ol.plain li b{color:var(--txt)}
-.steps{counter-reset:step;padding:0;list-style:none}
-.steps li{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;color:var(--mut);line-height:1.6}
-[data-theme="light"] .steps li{border-bottom-color:#edf0f7}
-.steps li:last-child{border-bottom:0;padding-bottom:0}
-.steps li::before{counter-increment:step;content:counter(step);flex-shrink:0;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:2px}
-.steps li b{color:var(--txt)}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
-.badge-blue{background:rgba(10,179,255,.12);color:var(--acc);border:1px solid rgba(10,179,255,.2)}
-.badge-ok{background:rgba(39,201,122,.1);color:var(--ok);border:1px solid rgba(39,201,122,.2)}
-.badge-warn{background:rgba(240,176,48,.08);color:var(--warn);border:1px solid rgba(240,176,48,.16)}
-.badge-bad{background:rgba(240,64,64,.08);color:var(--bad);border:1px solid rgba(240,64,64,.16)}
-.highlight{background:rgba(10,179,255,.08);border:1px solid rgba(10,179,255,.18);border-radius:12px;padding:14px 16px;margin:10px 0;font-size:14px;color:var(--txt);display:flex;gap:10px;align-items:flex-start}
-.highlight .icon{font-size:20px;flex-shrink:0;margin-top:1px}
-.wifi-box{background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:16px 20px;margin:12px 0}
-.wifi-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px}
-[data-theme="light"] .wifi-row{border-bottom-color:#edf0f7}
-.wifi-row:last-child{border-bottom:0;padding-bottom:0}
-.wifi-row:first-child{padding-top:0}
-.wifi-key{color:var(--mut);font-weight:500}
-.wifi-val{font-weight:700;font-family:monospace;font-size:13px}
-.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);margin:40px 0}
-.tip{display:flex;gap:12px;background:rgba(39,201,122,.06);border:1px solid rgba(39,201,122,.14);border-radius:14px;padding:14px 16px;margin:12px 0;font-size:13px;color:var(--mut)}
-.tip .t-icon{font-size:18px;flex-shrink:0}
-.warn-box{display:flex;gap:12px;background:rgba(240,176,48,.06);border:1px solid rgba(240,176,48,.14);border-radius:14px;padding:14px 16px;margin:12px 0;font-size:13px;color:var(--mut)}
-.warn-box .t-icon{font-size:18px;flex-shrink:0}
-.err-box{display:flex;gap:12px;background:rgba(240,64,64,.06);border:1px solid rgba(240,64,64,.14);border-radius:14px;padding:14px 16px;margin:12px 0;font-size:13px;color:var(--mut)}
-.err-box .t-icon{font-size:18px;flex-shrink:0}
-.faq{border:1px solid var(--b1);border-radius:14px;overflow:hidden;margin-bottom:10px}
-.faq summary{cursor:pointer;padding:14px 18px;font-size:14px;font-weight:600;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--s1)}
-.faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:"+";font-size:16px;color:var(--acc);flex-shrink:0;transition:transform .2s}
-details[open] .faq summary::after{content:"-"}
-.faq-body{padding:16px 18px;font-size:14px;color:var(--mut);line-height:1.65;border-top:1px solid var(--b1);background:var(--s2)}
-.faq-body b{color:var(--txt)}
-.faq-body ul{padding-left:18px;margin-top:6px;line-height:1.85}
-.faq-body ul li{margin-bottom:4px}
-.status-demo{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
-.sdot-demo{display:inline-flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--b1);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700}
-.dot-g{width:8px;height:8px;border-radius:50%;background:#27c97a;box-shadow:0 0 6px #27c97a80}
-.dot-r{width:8px;height:8px;border-radius:50%;background:#f04040;box-shadow:0 0 6px #f0404080}
-.dot-y{width:8px;height:8px;border-radius:50%;background:#f0b030;box-shadow:0 0 6px #f0b03080}
-.dot-b{width:8px;height:8px;border-radius:50%;background:#888;box-shadow:none}
-.support-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px}
-.support-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:14px;font-size:15px;font-weight:700;text-decoration:none;min-height:48px;transition:opacity .15s}
-.support-btn:hover{opacity:.85}
-.support-btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc2),var(--acc3));color:#fff}
-.support-btn.secondary{background:var(--s1);border:1px solid var(--b1);color:var(--txt)}
-@media(max-width:600px){.hero-logo{font-size:36px}.section-title{font-size:18px}.wifi-row{flex-direction:column;align-items:flex-start;gap:4px}}
-#scrollTop{
-  position:fixed;bottom:24px;right:20px;z-index:999;
-  width:44px;height:44px;border-radius:50%;
-  background:linear-gradient(135deg,var(--acc),var(--acc2));
-  color:#fff;font-size:20px;line-height:1;
-  border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;
-  transition:opacity .25s,transform .25s;
-  box-shadow:0 4px 16px rgba(10,179,255,.35);
-}
-#scrollTop.visible{opacity:1;pointer-events:auto}
-#scrollTop:hover{transform:translateY(-3px)}
-</style>
-</head>
-<body>
-
-<div class="hero">
-  <div class="hero-logo">Atlanta Router</div>
-  <div class="hero-sub">Инструкция по подключению, настройке и решению проблем</div>
-  <nav class="toc">
-    <a href="#wifi">Wi-Fi</a>
-    <a href="#panel">Панель</a>
-    <a href="#status">Статусы</a>
-    <a href="#internet">Интернет</a>
-    <a href="#vpn">VPN</a>
-    <a href="#guest">Гостевая сеть</a>
-    <a href="#parental">Детский режим</a>
-    <a href="#balancer">Балансировщик</a>
-    <a href="#problems">Проблемы</a>
-    <a href="#faq">FAQ</a>
-    <a href="#reset">Reset</a>
-    <a href="#support">Поддержка</a>
-  </nav>
-</div>
-
-<div class="content">
-
-<!-- WIFI -->
-<div class="section" id="wifi">
-  <div class="section-title">📶 <span>Подключение к Wi-Fi</span></div>
-
-  <div class="card">
-    <h3>🔑 Данные для подключения</h3>
-    <div class="wifi-box">
-      <div class="wifi-row"><span class="wifi-key">Сеть 2.4 ГГц</span><span class="wifi-val">Atlanta-2.4</span></div>
-      <div class="wifi-row"><span class="wifi-key">Сеть 5 ГГц</span><span class="wifi-val">Atlanta-5</span></div>
-      <div class="wifi-row"><span class="wifi-key">Пароль Wi-Fi</span><span class="wifi-val">11111111</span></div>
-    </div>
-    <div class="tip"><div class="t-icon">💡</div><div>Сеть <b>5 ГГц</b> быстрее — выбирайте для телефонов и ноутбуков вблизи роутера. <b>2.4 ГГц</b> лучше пробивает стены и перекрытия.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>📱 iPhone / iPad</h3>
-    <ol class="steps">
-      <li>Откройте <b>Настройки → Wi-Fi</b></li>
-      <li>Найдите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
-      <li>Нажмите на сеть и введите пароль: <b>11111111</b></li>
-      <li>Нажмите <b>Подключить</b></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🤖 Android</h3>
-    <ol class="steps">
-      <li>Откройте <b>Настройки → Подключения → Wi-Fi</b></li>
-      <li>Нажмите на <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
-      <li>Введите пароль: <b>11111111</b> → <b>Подключить</b></li>
-    </ol>
-    <div class="tip"><div class="t-icon">💡</div><div>Если появилась надпись <b>«Без доступа к интернету»</b> — подождите 15 сек, это нормально при первом подключении.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>💻 Windows</h3>
-    <ol class="steps">
-      <li>Нажмите на иконку Wi-Fi в правом нижнем углу</li>
-      <li>Найдите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
-      <li>Нажмите <b>Подключить</b>, введите пароль: <b>11111111</b></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🍎 macOS</h3>
-    <ol class="steps">
-      <li>Нажмите на иконку Wi-Fi в строке меню (вверху справа)</li>
-      <li>Выберите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
-      <li>Введите пароль: <b>11111111</b> → <b>Подключиться</b></li>
-    </ol>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- PANEL -->
-<div class="section" id="panel">
-  <div class="section-title">🛡 <span>Панель управления</span></div>
-
-  <div class="card">
-    <h3>🌐 Как открыть панель</h3>
-    <p>Откройте браузер и перейдите по адресу:</p>
-    <div class="highlight"><div class="icon">🔗</div><div><a href="http://atlanta.lan/" style="color:var(--acc);font-weight:700">http://atlanta.lan/</a> — или — <a href="http://192.168.14.1/" style="color:var(--acc);font-weight:700">http://192.168.14.1/</a></div></div>
-    <div class="wifi-box">
-      <div class="wifi-row"><span class="wifi-key">Логин</span><span class="wifi-val">admin</span></div>
-      <div class="wifi-row"><span class="wifi-key">Пароль</span><span class="wifi-val">admin</span></div>
-    </div>
-    <div class="warn-box"><div class="t-icon">⚠️</div><div>После первого входа <b>смените пароль</b> в разделе «Доступ к панели управления».</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🔄 Кнопки верхнего меню</h3>
-    <ul>
-      <li><b>💎 Подписка</b> — управление подпиской через бот</li>
-      <li><b>🎧 Поддержка</b> — написать в поддержку</li>
-      <li><b>📘 Инструкция</b> — эта страница</li>
-      <li><b>🔁 Перезапустить интернет</b> — если интернет пропал или завис</li>
-      <li><b>🔄 Обновить подписку</b> — загрузить обновлённый список серверов</li>
-      <li><b>🔄 (иконка обновления)</b> — обновить статус без перезагрузки страницы</li>
-      <li><b>🚪 Выйти</b> — выйти из панели</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h3>📱 MAC-адрес роутера</h3>
-    <p>MAC нужен при обращении в поддержку. Откройте:</p>
-    <div class="highlight"><div class="icon">🔗</div><div><b>http://atlanta.lan/my-mac/</b></div></div>
-    <p>Нажмите кнопку 📋 чтобы скопировать MAC одним касанием.</p>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- STATUS -->
-<div class="section" id="status">
-  <div class="section-title">📊 <span>Что означают статусы</span></div>
-
-  <div class="card">
-    <h3>🔵 Индикаторы в статус-баре</h3>
-    <div class="status-demo">
-      <span class="sdot-demo"><span class="dot-g"></span>Интернет</span>
-      <span class="sdot-demo"><span class="dot-g"></span>Видео</span>
-      <span class="sdot-demo"><span class="dot-r"></span>Мессенджер</span>
-      <span class="sdot-demo"><span class="dot-y"></span>ВК</span>
-      <span class="sdot-demo"><span class="dot-g"></span>ИИ</span>
-      <span class="sdot-demo"><span class="dot-b"></span>Проверка…</span>
-    </div>
-    <ul>
-      <li><b style="color:#27c97a">● Зелёный</b> — сервис доступен и работает</li>
-      <li><b style="color:#f04040">● Красный</b> — сервис недоступен</li>
-      <li><b style="color:#f0b030">● Жёлтый</b> — сервис работает с ограничениями или медленно</li>
-      <li><b style="color:#888">● Серый</b> — идёт проверка или нет данных</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h3>📶 Статус подключения</h3>
-    <ul>
-      <li><b>WAN IP</b> — внешний IP вашего роутера. Если пусто — нет подключения к провайдеру</li>
-      <li><b>Интернет</b> — есть ли выход в сеть</li>
-      <li><b>Видео</b> — доступны ли видеосервисы</li>
-      <li><b>Мессенджер</b> — доступны ли мессенджеры</li>
-      <li><b>ВКонтакте</b> — доступна ли ВКонтакте</li>
-      <li><b>ИИ</b> — доступны ли ИИ-сервисы</li>
-      <li><b>VPN</b> — включены ли VPN</li>
-    </ul>
-    <div class="tip"><div class="t-icon">💡</div><div>Нажмите кнопку 🔄 рядом с WAN IP чтобы обновить все статусы без перезагрузки страницы.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🎯 Режимы видеосервисов</h3>
-    <ul>
-      <li><b>Основной</b> — трафик идёт напрямую, без нагрузки на сервер (работает у большинства)</li>
-      <li><b>Запасной</b> — трафик идёт через VPN (если Основной не помогает)</li>
-    </ul>
-    <div class="tip"><div class="t-icon">💡</div><div>Если видео не работает в режиме «Основной» — переключите на «Запасной».</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- INTERNET -->
-<div class="section" id="internet">
-  <div class="section-title">🌐 <span>Настройка интернета (WAN)</span></div>
-
-  <div class="card">
-    <h3>⚡ Типы подключения</h3>
-    <ul>
-      <li><b>DHCP</b> — автоматически, провайдер сам выдаёт настройки (чаще всего)</li>
-      <li><b>PPPoE</b> — нужны логин и пароль от провайдера</li>
-      <li><b>Статический IP</b> — фиксированный адрес, выдаёт провайдер</li>
-      <li><b>L2TP / PPTP</b> — туннельное подключение</li>
-    </ul>
-    <div class="tip"><div class="t-icon">💡</div><div>Если не знаете тип — попробуйте <b>DHCP</b>. Данные для PPPoE есть в договоре с провайдером.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🔧 Настройка PPPoE (логин + пароль)</h3>
-    <ol class="steps">
-      <li>В панели найдите блок <b>«Настройки интернета»</b></li>
-      <li>Выберите <b>PPPoE (логин и пароль)</b></li>
-      <li>Введите <b>логин</b> и <b>пароль</b> от провайдера</li>
-      <li>Нажмите <b>💾 Сохранить</b></li>
-      <li>Подождите 10–20 сек — в статус-баре появится IP-адрес</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔁 Интернет пропал — что делать?</h3>
-    <ol class="steps">
-      <li>Нажмите <b>🔁 Перезапустить интернет</b> в верхнем меню</li>
-      <li>Подождите 15–20 секунд</li>
-      <li>Нажмите 🔄 чтобы обновить статус</li>
-      <li>Если не помогло — в блоке WAN нажмите <b>↺ Перезагрузка роутера</b></li>
-    </ol>
-    <div class="tip"><div class="t-icon">💡</div><div>После перезагрузки роутер включается через 30–40 секунд.</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- VPN -->
-<div class="section" id="vpn">
-  <div class="section-title">🔐 <span>VPN</span></div>
-
-  <div class="card">
-    <h3>▶️ Включить / выключить VPN</h3>
-    <p>В статус-баре найдите индикатор <b>«VPN»</b> и нажмите на него. Или используйте кнопку в разделе управления.</p>
-    <div class="warn-box"><div class="t-icon">⚠️</div><div>После нажатия подождите <b>5–7 секунд</b> — применение происходит в фоне. Статус обновится автоматически.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🎯 Выбор сервера</h3>
-    <ol class="steps">
-      <li>В блоке <b>«Сервер»</b> нажмите на выпадающий список</li>
-      <li>Дождитесь загрузки пинга (⏱ несколько секунд)</li>
-      <li>Выберите сервер с низким пингом (<span class="badge badge-ok">🟢 &lt;50ms</span>)</li>
-      <li>Нажмите <b>Применить</b></li>
-    </ol>
-    <div class="status-demo">
-      <span class="sdot-demo"><span class="dot-g"></span>🟢 &lt;50ms — отлично</span>
-      <span class="sdot-demo"><span class="dot-y"></span>🟡 50–150ms — норм</span>
-      <span class="sdot-demo"><span class="dot-r"></span>🔴 &gt;150ms — медленно</span>
-    </div>
-    <div class="tip"><div class="t-icon">💡</div><div><b>Авто</b> — автоматически выбирает лучший сервер. Рекомендуется оставить его.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🔄 Обновление подписки (списка серверов)</h3>
-    <p>Список серверов обновляется автоматически <b>каждую ночь в 04:00</b>. Можно обновить вручную:</p>
-    <ol class="steps">
-      <li>Нажмите кнопку <b>🔄 Обновить подписку</b></li>
-      <li>Появится сообщение «Обновление запущено в фоне»</li>
-      <li>Подождите 15–30 секунд</li>
-      <li>Серверы обновятся в фоне — страницу перезагружать не нужно</li>
-    </ol>
-    <div class="tip"><div class="t-icon">💡</div><div><b>Первое нажатие</b> может занять 20–40 секунд — идёт загрузка с сервера. Последующие нажатия быстрее.</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- GUEST -->
-<div class="section" id="guest">
-  <div class="section-title">🏠 <span>Гостевая сеть</span></div>
-
-  <div class="card">
-    <h3>ℹ️ Что такое гостевая сеть?</h3>
-    <p>Отдельная Wi-Fi сеть для гостей. Устройства в гостевой сети:</p>
-    <ul>
-      <li>Имеют доступ в интернет</li>
-      <li><b>Не видят</b> ваши домашние устройства (изолированы)</li>
-      <li>Работают в прямом режиме — без VPN</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h3>▶️ Как включить гостевую сеть</h3>
-    <ol class="steps">
-      <li>Откройте раздел <b>«🏠 Гостевая сеть и родительский контроль»</b></li>
-      <li>При желании измените название и задайте пароль</li>
-      <li>Нажмите <b>✅ Включить гостевую</b></li>
-      <li>Через 10–15 секунд появятся сети <b>Atlanta-Guest</b> и <b>Atlanta-Guest_5G</b></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>⏹ Как отключить гостевую сеть</h3>
-    <p>В том же разделе нажмите <b>✖ Отключить гостевую</b>. Сети исчезнут через несколько секунд.</p>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- PARENTAL -->
-<div class="section" id="parental">
-  <div class="section-title">🔒 <span>Детский режим</span></div>
-
-  <div class="card">
-    <h3>ℹ️ Как работает детский режим?</h3>
-    <p>Детский режим работает в <b>гостевой сети</b> (Atlanta-Guest). Включите гостевую сеть и отдайте её детям.</p>
-    <ul>
-      <li><b>🛡 Безопасный DNS</b> — автоматически блокирует сайты 18+, казино, нежелательный контент</li>
-      <li><b>⏰ Расписание</b> — интернет отключается в заданное время</li>
-      <li><b>📝 Список сайтов</b> — блокировка конкретных сайтов вручную</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h3>▶️ Настройка детского режима</h3>
-    <ol class="steps">
-      <li>Сначала включите <b>Гостевую сеть</b> (см. выше)</li>
-      <li>Подключите устройство ребёнка к <b>Atlanta-Guest</b></li>
-      <li>В панели откройте <b>«Гостевая сеть и родительский контроль»</b></li>
-      <li>Включите <b>🛡 Безопасный DNS</b></li>
-      <li>При желании настройте <b>⏰ Расписание</b></li>
-      <li>Нажмите <b>💾 Сохранить</b></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>📝 Заблокировать конкретный сайт</h3>
-    <ol class="steps">
-      <li>В поле <b>«Блокировать сайты»</b> введите домены через запятую</li>
-      <li>Например: <b>tiktok.com, instagram.com</b></li>
-      <li>Нажмите <b>💾 Сохранить</b></li>
-    </ol>
-    <div class="warn-box"><div class="t-icon">⚠️</div><div>Блокировка работает только для устройств в сети <b>Atlanta-Guest</b>.</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- BALANCER -->
-<div class="section" id="balancer">
-  <div class="section-title">⚖️ <span>Авто-выбор сервера</span></div>
-
-  <div class="card">
-    <h3>ℹ️ Что такое авто-выбор?</h3>
-    <p>Режим <b>«Авто»</b> — роутер автоматически выбирает лучший сервер в реальном времени. Он проверяет доступность серверов и переключается при проблемах.</p>
-    <div class="tip"><div class="t-icon">💡</div><div>Рекомендуем оставить режим <b>«Авто»</b> — это обеспечит наилучшее качество соединения.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>⚙️ Как это работает</h3>
-    <ul>
-      <li>Авто-выбор работает автоматически — настраивать ничего не нужно</li>
-      <li>При выборе конкретного сервера вручную авто-режим отключается</li>
-      <li>Чтобы вернуть авто-выбор — выберите <b>«Авто»</b> и нажмите <b>Применить</b></li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h3>🔧 VPN не работают — что проверить</h3>
-    <ul>
-      <li>Убедитесь что <b>VPN включён</b> (индикатор зелёный)</li>
-      <li>Нажмите <b>🔄 Обновить подписку</b> — возможно список серверов устарел</li>
-      <li>Проверьте пинг серверов в выпадающем списке — если все красные, проблема с сетью</li>
-      <li>Попробуйте выбрать конкретный сервер с зелёным пингом</li>
-      <li>Если ни один сервер не работает — обратитесь в поддержку</li>
-    </ul>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- PROBLEMS -->
-<div class="section" id="problems">
-  <div class="section-title">🔧 <span>Частые проблемы и решения</span></div>
-
-  <div class="card">
-    <h3>🔴 Видео не работает</h3>
-    <ol class="steps">
-      <li>Убедитесь что <b>VPN включён</b> (зелёный индикатор)</li>
-      <li>Попробуйте переключить режим YouTube: <b>Основной → Запасной</b></li>
-      <li>Если не помогло — нажмите <b>🔄 Обновить подписку</b></li>
-      <li>Выберите другой сервер с низким пингом</li>
-      <li>Подождите 1–2 минуты и проверьте снова</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔴 Мессенджер не работает</h3>
-    <ol class="steps">
-      <li>Убедитесь что <b>VPN включён</b></li>
-      <li>Если включены — выключите и снова включите (иногда помогает переподключение)</li>
-      <li>Подождите 10 секунд после включения</li>
-      <li>Если проблема осталась — смените сервер</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔴 Нет интернета вообще</h3>
-    <ol class="steps">
-      <li>Проверьте что кабель от провайдера подключён к порту <b>WAN</b> роутера</li>
-      <li>Нажмите <b>🔁 Перезапустить интернет</b></li>
-      <li>Подождите 20 секунд и нажмите 🔄 обновить</li>
-      <li>Если WAN IP не появился — проверьте настройки подключения (PPPoE логин/пароль)</li>
-      <li>Перезагрузите роутер кнопкой Reset (короткое нажатие)</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔴 Панель управления не открывается</h3>
-    <ol class="steps">
-      <li>Убедитесь что подключены к Wi-Fi <b>Atlanta-2.4</b> или <b>Atlanta-5</b></li>
-      <li>Попробуйте адрес <b>http://192.168.14.1/</b> вместо atlanta.lan</li>
-      <li>Очистите кэш браузера (Ctrl+Shift+R или Cmd+Shift+R)</li>
-      <li>Попробуйте другой браузер</li>
-      <li>Проверьте что в адресе <b>http://</b> а не https://</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔴 Забыл пароль от панели</h3>
-    <p>Зажмите кнопку Reset на роутере на <b>3 секунды и дольше</b>. Пароль сбросится до <b>admin</b>.</p>
-    <div class="warn-box"><div class="t-icon">⚠️</div><div>После сброса также сбросятся название Wi-Fi сети и пароль Wi-Fi до заводских значений.</div></div>
-  </div>
-
-  <div class="card">
-    <h3>🔴 Медленный интернет через VPN</h3>
-    <ol class="steps">
-      <li>Откройте выпадающий список серверов и выберите сервер с <span class="badge badge-ok">🟢 пингом</span></li>
-      <li>Избегайте серверов с <span class="badge badge-bad">🔴 красным пингом</span></li>
-      <li>Нажмите <b>🔄 Обновить подписку</b></li>
-      <li>Попробуйте режим <b>Основной</b> вместо Запасного — он работает напрямую и быстрее</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h3>🔴 VPN включается но ничего не меняется</h3>
-    <ol class="steps">
-      <li>После включения подождите <b>7–10 секунд</b> — применяется в фоне</li>
-      <li>Нажмите 🔄 чтобы обновить статус</li>
-      <li>Очистите кэш браузера и перезагрузите страницу</li>
-      <li>Если статус «VPN» зелёный, но сайты не открываются — смените сервер</li>
-    </ol>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- FAQ -->
-<div class="section" id="faq">
-  <div class="section-title">❓ <span>Часто задаваемые вопросы</span></div>
-
-  <details class="faq">
-    <summary class="faq">Почему первое нажатие «Обновить подписку» долгое?</summary>
-    <div class="faq-body">При первом обновлении роутер загружает список серверов из интернета — это занимает <b>15–40 секунд</b> в зависимости от скорости интернета. Последующие нажатия быстрее, так как данные кэшируются. Это нормальное поведение.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Почему VPN замедляют интернет?</summary>
-    <div class="faq-body">Трафик через сервер добавляет задержку. Чтобы минимизировать замедление: <ul><li>Выбирайте сервер с <b>низким пингом</b> (зелёный)</li><li>Используйте режим <b>«Основной»</b> — он работает напрямую без нагрузки на сервер</li><li>Обновите подписку — могут появиться более быстрые серверы</li></ul></div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Что значит «Авто»?</summary>
-    <div class="faq-body">Это режим при котором роутер <b>автоматически выбирает лучший сервер</b>. Если один сервер перегружен или недоступен — происходит переключение на другой. Рекомендуется оставить этот режим.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Нужно ли вручную обновлять подписку?</summary>
-    <div class="faq-body">Нет — список серверов обновляется <b>автоматически каждую ночь в 04:00</b>. Ручное обновление нужно только если серверы перестали работать прямо сейчас.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Что делать если видео тормозит в режиме «Основной»?</summary>
-    <div class="faq-body">Переключитесь на режим <b>«Запасной»</b> — трафик пойдёт через VPN. Если и это не помогает — обновите подписку и выберите другой сервер с низким пингом.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Почему в режиме «Основной» видео работает, а в «Запасной» нет?</summary>
-    <div class="faq-body">Режим «Основной» — трафик идёт <b>напрямую</b>, без нагрузки на сервер. Режим «Запасной» — трафик идёт <b>через VPN</b>. Если «Запасной» не помогает — переключитесь обратно на «Основной» или выберите другой сервер.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Работает ли роутер без интернета от провайдера?</summary>
-    <div class="faq-body">Роутер работает как точка доступа Wi-Fi, но без интернет-соединения от провайдера сервисы недоступны. VPN также не работают без базового подключения.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Безопасно ли использовать гостевую сеть?</summary>
-    <div class="faq-body">Да. Гостевая сеть полностью изолирована от вашей домашней сети. Устройства в Atlanta-Guest <b>не видят</b> ваши компьютеры, принтеры, умные устройства. Они могут только выходить в интернет.</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Как понять что подписка закончилась?</summary>
-    <div class="faq-body">Если подписка закончилась — <ul><li>Индикаторы видео, мессенджеров, ИИ становятся красными</li><li>VPN включён, но сайты не открываются</li><li>В списке серверов нет ни одного рабочего</li></ul>Обновите подписку через бот (кнопка 💎 Подписка).</div>
-  </details>
-
-  <details class="faq">
-    <summary class="faq">Как проверить что VPN работают?</summary>
-    <div class="faq-body">После включения VPN: <ul><li>Индикатор «VPN» должен стать <b style="color:#27c97a">зелёным</b></li><li>Откройте 2ip.ru или whoer.net — IP должен измениться</li><li>Ранее недоступные сайты должны открываться</li></ul></div>
-  </details>
-</div>
-
-<div class="divider"></div>
-
-<!-- RESET -->
-<div class="section" id="reset">
-  <div class="section-title">🔘 <span>Кнопка Reset</span></div>
-  <div class="card">
-    <h3>⚡ Как работает кнопка Reset</h3>
-    <ul>
-      <li><b>Короткое нажатие</b> (менее 3 сек) — <span class="badge badge-blue">перезагрузка роутера</span></li>
-      <li><b>Длинное нажатие</b> (3 сек и дольше) — <span class="badge badge-warn">сброс Wi-Fi и пароля панели до заводских</span></li>
-    </ul>
-    <div class="wifi-box" style="margin-top:12px">
-      <div class="wifi-row"><span class="wifi-key">Wi-Fi 2.4 ГГц после сброса</span><span class="wifi-val">Atlanta-2.4</span></div>
-      <div class="wifi-row"><span class="wifi-key">Wi-Fi 5 ГГц после сброса</span><span class="wifi-val">Atlanta-5</span></div>
-      <div class="wifi-row"><span class="wifi-key">Пароль Wi-Fi после сброса</span><span class="wifi-val">11111111</span></div>
-      <div class="wifi-row"><span class="wifi-key">Логин панели после сброса</span><span class="wifi-val">admin</span></div>
-      <div class="wifi-row"><span class="wifi-key">Пароль панели после сброса</span><span class="wifi-val">admin</span></div>
-    </div>
-    <div class="warn-box"><div class="t-icon">⚠️</div><div>Сброс <b>не удаляет</b> подписку и настройки провайдера (PPPoE и т.д.) — только Wi-Fi и пароль панели.</div></div>
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- SUPPORT -->
-<div class="section" id="support">
-  <div class="section-title">🎧 <span>Поддержка</span></div>
-  <div class="card" style="text-align:center">
-    <h3 style="justify-content:center;margin-bottom:8px">Нужна помощь?</h3>
-    <p>Напишите в поддержку — мы поможем с настройкой. Пожалуйста укажите <b>MAC-адрес</b> роутера при обращении.</p>
-    <div class="support-row">
-      <a class="support-btn primary" href="https://t.me/AtlantaVPNSUPPORT_bot" target="_blank" rel="noopener">Написать в поддержку</a>
-      <a class="support-btn secondary" href="https://atlanta-vps.com/dashboard" target="_blank" rel="noopener">Подписка</a>
-    </div>
-    <div class="highlight" style="margin-top:20px;text-align:left">
-      <div class="icon">🔍</div>
-      <div>MAC-адрес роутера: <a href="http://atlanta.lan/my-mac/" style="color:var(--acc)">atlanta.lan/my-mac/</a></div>
-    </div>
-  </div>
-</div>
-
-</div>
-
-<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Наверх">↑</button>
-
-<script>
-(function(){
-  var btn = document.getElementById('scrollTop');
-  window.addEventListener('scroll', function(){
-    btn.classList.toggle('visible', window.scrollY > 300);
-  }, {passive:true});
-})();
-</script>
-
-</body>
-</html>
-INSTREOF
-ok "instruction.html установлен"
-
+# ── [5a/8] Инструкция — устанавливается отдельно (instruction.txt) ──
+info '[5a/8] Инструкция: запустите instruction.txt отдельно'
 # ── [5b/8] Страница /my-mac/ ──────────────────────────────────
 step "[5b/8] Устанавливаем страницу /my-mac/"
 mkdir -p /www/my-mac
@@ -4787,8 +4176,8 @@ ok "LAN IP: $LAN_IP"
 step "[9/9] Перезапускаем сервисы"
 /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 info "uhttpd перезапущен"
-/etc/init.d/network restart >/dev/null 2>&1 || true
-info "Сеть перезапущена"
+/etc/init.d/network reload >/dev/null 2>&1 || true
+info "Сеть перезагружена (reload, WAN не трогаем)"
 /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
 info "dnsmasq перезапущен (atlanta.lan активен)"
 
@@ -4848,141 +4237,6 @@ mv /tmp/atl_cron_tmp /etc/crontabs/root
 /etc/init.d/cron restart >/dev/null 2>&1 || true
 ok "Cron: autoselect в 03:00, обновление подписки в 04:00"
 
-# ── [+] FRP reverse proxy ──────────────────────────────────────
-step "[+] Подготовка FRP (удалённый доступ)"
-cat > /usr/bin/frp_simple_install.sh <<'FRPSH'
-#!/bin/sh
-set -eu
-
-FRP_VER="0.61.0"
-
-SERVER_ADDR="origin.all-streams-24.ru"
-SERVER_PORT="8443"
-TOKEN="21658aa79e70daf3a9e7ededa24855dcdf791a8606a4da6f8d7cb594513202d2"
-LUCI_PORT="80"
-SSH_PORT="22"
-
-log(){ echo "[frp] $*"; }
-need(){ command -v "$1" >/dev/null 2>&1; }
-
-ARCH="$(uname -m)"
-case "$ARCH" in
-  aarch64|arm64) FRP_TAR="frp_${FRP_VER}_linux_arm64.tar.gz" ;;
-  x86_64|amd64)  FRP_TAR="frp_${FRP_VER}_linux_amd64.tar.gz" ;;
-  armv7l|armv7*) FRP_TAR="frp_${FRP_VER}_linux_arm.tar.gz" ;;
-  i386|i686)     FRP_TAR="frp_${FRP_VER}_linux_386.tar.gz" ;;
-  mipsel*)       FRP_TAR="frp_${FRP_VER}_linux_mipsle.tar.gz" ;;
-  mips*)         FRP_TAR="frp_${FRP_VER}_linux_mips.tar.gz" ;;
-  *) log "Unsupported arch: $ARCH"; exit 1 ;;
-esac
-
-get_mac() {
-  [ -r /sys/class/net/br-lan/address ] && { cat /sys/class/net/br-lan/address; return; }
-  [ -r /sys/class/net/eth0/address   ] && { cat /sys/class/net/eth0/address;   return; }
-  need ip && { ip link 2>/dev/null | awk '/link\/ether/{print $2; exit}'; return; }
-  echo "00:00:00:00:00:00"
-}
-MAC="$(get_mac | head -n1)"
-MACHEX="$(echo "$MAC" | tr -d ':' | tr 'A-F' 'a-f')"
-LUCINAME="luci${MACHEX}"
-SSHNAME="ssh${MACHEX}"
-log "MAC: $MAC => $MACHEX  names: $LUCINAME / $SSHNAME"
-
-DL=""
-if need curl; then DL="curl"
-elif need wget; then DL="wget"
-else
-  opkg update >/dev/null 2>&1 || true
-  opkg install curl ca-bundle >/dev/null 2>&1 || true
-  need curl && DL="curl" || { log "Need curl or wget"; exit 1; }
-fi
-
-TMP="/tmp/frp.$$"
-mkdir -p "$TMP"
-URL="https://github.com/fatedier/frp/releases/download/v${FRP_VER}/${FRP_TAR}"
-log "Download: $URL"
-if [ "$DL" = "curl" ]; then
-  curl -fL --connect-timeout 10 --max-time 180 -o "$TMP/frp.tgz" "$URL"
-else
-  wget -O "$TMP/frp.tgz" "$URL"
-fi
-
-tar -xzf "$TMP/frp.tgz" -C "$TMP"
-FRP_DIR="$(find "$TMP" -maxdepth 1 -type d -name "frp_*" | head -n1)"
-[ -n "$FRP_DIR" ] && [ -x "$FRP_DIR/frpc" ] || { log "frpc not found"; exit 1; }
-cp -f "$FRP_DIR/frpc" /usr/bin/frpc
-chmod 0755 /usr/bin/frpc
-rm -rf "$TMP"
-log "Installed: /usr/bin/frpc $(/usr/bin/frpc -v 2>/dev/null || true)"
-
-mkdir -p /etc/frp
-cat > /etc/frp/frpc.ini <<EOF
-[common]
-server_addr = ${SERVER_ADDR}
-server_port = ${SERVER_PORT}
-token = ${TOKEN}
-
-[${LUCINAME}]
-type = stcp
-role = server
-use_encryption = true
-use_compression = false
-local_ip = 127.0.0.1
-local_port = ${LUCI_PORT}
-sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
-
-[${SSHNAME}]
-type = stcp
-role = server
-use_encryption = true
-use_compression = false
-local_ip = 127.0.0.1
-local_port = ${SSH_PORT}
-sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
-EOF
-chmod 600 /etc/frp/frpc.ini
-log "Wrote: /etc/frp/frpc.ini"
-
-cat > /etc/init.d/frpc <<'INITEOF'
-#!/bin/sh /etc/rc.common
-USE_PROCD=1
-START=95
-STOP=10
-start_service() {
-  procd_open_instance
-  procd_set_param command /usr/bin/frpc -c /etc/frp/frpc.ini
-  procd_set_param respawn 3600 5 5
-  procd_set_param stdout 1
-  procd_set_param stderr 1
-  procd_close_instance
-}
-stop_service() { killall -q frpc 2>/dev/null || true; }
-INITEOF
-chmod +x /etc/init.d/frpc
-/etc/init.d/frpc enable >/dev/null 2>&1 || true
-/etc/init.d/frpc restart >/dev/null 2>&1 || /etc/init.d/frpc start >/dev/null 2>&1 || true
-log "DONE. Sections: ${LUCINAME}, ${SSHNAME}"
-FRPSH
-chmod +x /usr/bin/frp_simple_install.sh
-
-# Запускаем в фоне если интернет есть; иначе — через hotplug при появлении
-if ping -c1 -W3 8.8.8.8 >/dev/null 2>&1; then
-  /usr/bin/frp_simple_install.sh >/tmp/frp_install.log 2>&1 &
-  info "FRP запущен в фоне → tail -f /tmp/frp_install.log"
-else
-  info "Нет интернета — FRP установится автоматически при подключении"
-  cat > /etc/hotplug.d/iface/99-frp-install <<'HPLUG'
-#!/bin/sh
-[ "$ACTION" = "ifup" ] || exit 0
-[ -x /usr/bin/frp_simple_install.sh ] || exit 0
-[ -f /usr/bin/frpc ] && { rm -f /etc/hotplug.d/iface/99-frp-install; exit 0; }
-ping -c1 -W3 8.8.8.8 >/dev/null 2>&1 || exit 0
-/usr/bin/frp_simple_install.sh >/tmp/frp_install.log 2>&1 &
-rm -f /etc/hotplug.d/iface/99-frp-install
-HPLUG
-  chmod +x /etc/hotplug.d/iface/99-frp-install
-fi
-ok "FRP настроен"
 
 # ── Финальный баннер ─────────────────────────────────────────
 printf '\n'
@@ -5008,5 +4262,937 @@ printf "${CG}╚═════════════════════�
 EOF
 
 sh /tmp/install_atlanta_panel_v2.sh
+
+cat <<'EOF' > /tmp/install_atlanta_instruction.sh
+#!/bin/sh
+set -eu
+
+C0='\033[0m'; CB='\033[1;36m'; CG='\033[1;32m'; CY='\033[1;33m'
+step(){ printf "${CB}━━━ %s ━━━${C0}\n" "$*"; }
+ok(){   printf "  ${CG}✔  %s${C0}\n" "$*"; }
+
+printf '\n'
+printf "${CB}╔══════════════════════════════════════════╗${C0}\n"
+printf "${CB}║    📖  Atlanta Router — Инструкция        ║${C0}\n"
+printf "${CB}╚══════════════════════════════════════════╝${C0}\n\n"
+
+step '[1/2] Устанавливаем страницу инструкции'
+cat > /www/instruction.html << 'INSTREOF'
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Atlanta Router — Инструкция</title>
+<script>
+(function(){
+  try{var t=localStorage.getItem('atlTheme')||'light';document.documentElement.setAttribute('data-theme',t);}
+  catch(e){document.documentElement.setAttribute('data-theme','light');}
+})();
+</script>
+<style>
+:root{
+  --bg:#000;--s1:#0d0f16;--s2:#13151f;
+  --b1:rgba(255,255,255,.08);--b2:rgba(255,255,255,.13);
+  --txt:#f0f4ff;--mut:rgba(240,244,255,.55);--dim:rgba(240,244,255,.32);
+  --acc:#0ab3ff;--acc2:#0070f0;--acc3:#0046c0;
+  --ok:#27c97a;--bad:#f04040;--warn:#f0b030;
+  --r:18px;--topbar-h:52px;
+}
+[data-theme="light"]{
+  --bg:#eef2f9;--s1:#ffffff;--s2:#f7f9fc;
+  --b1:#dde3ef;--b2:#c5cfe0;
+  --txt:#0f172a;--mut:#475569;--dim:#64748b;
+  --acc:#2563eb;--acc2:#1d4ed8;--acc3:#1e40af;
+  --ok:#15803d;--bad:#dc2626;--warn:#b45309;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--topbar-h) + 12px)}
+body{
+  background:radial-gradient(ellipse 140% 50% at 50% -10%,rgba(10,179,255,.12),transparent 55%),
+    radial-gradient(ellipse 80% 40% at 90% 80%,rgba(0,70,192,.08),transparent 50%),var(--bg);
+  color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
+  min-height:100vh;padding-top:var(--topbar-h);
+}
+[data-theme="light"] body{
+  background:radial-gradient(ellipse 120% 45% at 50% -10%,rgba(37,99,235,.08),transparent 60%),
+    radial-gradient(ellipse 80% 35% at 90% 80%,rgba(29,78,216,.05),transparent 55%),var(--bg);
+}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:var(--topbar-h);
+  background:rgba(13,15,22,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px}
+[data-theme="light"] .topbar{background:rgba(255,255,255,.9)}
+.topbar-back{display:inline-flex;align-items:center;gap:6px;color:var(--acc);font-size:14px;font-weight:700;
+  text-decoration:none;padding:7px 14px;border-radius:999px;border:1px solid rgba(10,179,255,.25);transition:background .15s;white-space:nowrap}
+.topbar-back:hover{background:rgba(10,179,255,.1)}
+[data-theme="light"] .topbar-back{border-color:rgba(37,99,235,.3)}
+.topbar-title{font-size:14px;font-weight:700;color:var(--txt);flex:1;text-align:center}
+.topbar-theme{background:none;border:1px solid var(--b1);border-radius:999px;color:var(--dim);
+  font-size:16px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;
+  justify-content:center;transition:border-color .15s,color .15s;flex-shrink:0}
+.topbar-theme:hover{border-color:var(--b2);color:var(--txt)}
+.hero{text-align:center;padding:44px 20px 28px}
+.hero-logo{font-size:42px;font-weight:800;letter-spacing:-2px;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;line-height:1.1}
+.hero-sub{font-size:14px;color:var(--mut);margin-bottom:24px}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-width:760px;margin:0 auto;padding:0 16px}
+.toc a{display:flex;align-items:center;justify-content:center;background:var(--s1);border:1px solid var(--b1);
+  border-radius:10px;padding:8px 6px;font-size:12px;font-weight:600;color:var(--txt);text-decoration:none;
+  text-align:center;transition:border-color .15s,background .15s;min-height:34px}
+.toc a:hover{background:var(--s2);border-color:var(--b2)}
+.content{max-width:800px;margin:0 auto;padding:28px 16px 90px}
+.section{margin-bottom:44px}
+.section-title{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title span{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:18px 20px;margin-bottom:10px}
+[data-theme="light"] .card{box-shadow:0 1px 3px rgba(15,23,42,.07)}
+.card h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.card p{color:var(--mut);font-size:14px;line-height:1.65;margin-bottom:10px}
+.card p:last-child{margin-bottom:0}
+.card ul,.card ol.plain{color:var(--mut);font-size:14px;padding-left:18px;line-height:1.85}
+.card ul li,.card ol.plain li{margin-bottom:3px}
+.card ul li b,.card ol.plain li b{color:var(--txt)}
+.qs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:4px}
+.qs-item{background:var(--s2);border:1px solid var(--b1);border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.qs-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:800;font-size:13px;
+  display:flex;align-items:center;justify-content:center}
+.qs-text{font-size:13px;color:var(--mut);line-height:1.5}
+.qs-text b{color:var(--txt);display:block;font-size:13px;margin-bottom:2px}
+.steps{counter-reset:step;padding:0;list-style:none}
+.steps li{display:flex;gap:12px;align-items:flex-start;padding:11px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;color:var(--mut);line-height:1.6}
+[data-theme="light"] .steps li{border-bottom-color:#edf0f7}
+.steps li:last-child{border-bottom:0;padding-bottom:0}
+.steps li::before{counter-increment:step;content:counter(step);flex-shrink:0;width:24px;height:24px;
+  border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;
+  font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.steps li b{color:var(--txt)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.badge-blue{background:rgba(10,179,255,.12);color:var(--acc);border:1px solid rgba(10,179,255,.2)}
+.badge-ok{background:rgba(39,201,122,.1);color:var(--ok);border:1px solid rgba(39,201,122,.2)}
+.badge-warn{background:rgba(240,176,48,.08);color:var(--warn);border:1px solid rgba(240,176,48,.16)}
+.highlight{background:rgba(10,179,255,.08);border:1px solid rgba(10,179,255,.18);border-radius:12px;
+  padding:13px 15px;margin:10px 0;font-size:14px;color:var(--txt);display:flex;gap:10px;align-items:flex-start}
+.highlight .icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.tip{display:flex;gap:11px;background:rgba(39,201,122,.06);border:1px solid rgba(39,201,122,.14);
+  border-radius:13px;padding:13px 15px;margin:10px 0;font-size:13px;color:var(--mut)}
+.tip .t-icon{font-size:17px;flex-shrink:0}
+.warn-box{display:flex;gap:11px;background:rgba(240,176,48,.06);border:1px solid rgba(240,176,48,.14);
+  border-radius:13px;padding:13px 15px;margin:10px 0;font-size:13px;color:var(--mut)}
+.warn-box .t-icon{font-size:17px;flex-shrink:0}
+.info-box{display:flex;gap:11px;background:rgba(10,179,255,.06);border:1px solid rgba(10,179,255,.14);
+  border-radius:13px;padding:13px 15px;margin:10px 0;font-size:13px;color:var(--mut)}
+.info-box .t-icon{font-size:17px;flex-shrink:0}
+.wifi-box{background:var(--s2);border:1px solid var(--b1);border-radius:13px;padding:14px 18px;margin:10px 0}
+.wifi-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,.05);font-size:14px}
+[data-theme="light"] .wifi-row{border-bottom-color:#edf0f7}
+.wifi-row:last-child{border-bottom:0;padding-bottom:0}
+.wifi-row:first-child{padding-top:0}
+.wifi-key{color:var(--mut);font-weight:500}
+.wifi-val{font-weight:700;font-family:monospace;font-size:13px}
+.status-demo{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.sdot-demo{display:inline-flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--b1);
+  border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700}
+.dot-g{width:7px;height:7px;border-radius:50%;background:#27c97a;box-shadow:0 0 5px #27c97a80;flex-shrink:0}
+.dot-r{width:7px;height:7px;border-radius:50%;background:#f04040;box-shadow:0 0 5px #f0404080;flex-shrink:0}
+.dot-y{width:7px;height:7px;border-radius:50%;background:#f0b030;box-shadow:0 0 5px #f0b03080;flex-shrink:0}
+.dot-b{width:7px;height:7px;border-radius:50%;background:#888;flex-shrink:0}
+.faq{border:1px solid var(--b1);border-radius:13px;overflow:hidden;margin-bottom:7px}
+.faq summary{cursor:pointer;padding:13px 17px;font-size:14px;font-weight:600;list-style:none;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--s1)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:16px;color:var(--acc);flex-shrink:0}
+details.faq[open] > summary::after{content:"−"}
+.faq-body{padding:14px 17px;font-size:14px;color:var(--mut);line-height:1.65;border-top:1px solid var(--b1);background:var(--s2)}
+.faq-body b{color:var(--txt)}
+.faq-body ul{padding-left:18px;margin-top:6px;line-height:1.85}
+.faq-body ul li{margin-bottom:3px}
+.support-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.support-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:13px;
+  font-size:15px;font-weight:700;text-decoration:none;min-height:48px;transition:opacity .15s}
+.support-btn:hover{opacity:.85}
+.support-btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc2),var(--acc3));color:#fff}
+.support-btn.secondary{background:var(--s1);border:1px solid var(--b1);color:var(--txt)}
+.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);margin:32px 0}
+#scrollTop{position:fixed;bottom:22px;right:18px;z-index:999;width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-size:18px;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;box-shadow:0 4px 14px rgba(10,179,255,.35)}
+#scrollTop.visible{opacity:1;pointer-events:auto}
+#scrollTop:hover{transform:translateY(-3px)}
+@media(max-width:600px){
+  .hero-logo{font-size:34px}.section-title{font-size:17px}
+  .wifi-row{flex-direction:column;align-items:flex-start;gap:2px}
+  .toc{grid-template-columns:repeat(3,1fr)}
+  .qs-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="topbar-back" href="/cgi-bin/panel">← Панель</a>
+  <span class="topbar-title">📖 Инструкция</span>
+  <button class="topbar-theme" id="themeBtn" onclick="toggleTheme()" title="Тема">🌙</button>
+</div>
+
+<div class="hero">
+  <div class="hero-logo">Atlanta Router</div>
+  <div class="hero-sub">Подключение · Настройка · Решение проблем</div>
+  <nav class="toc">
+    <a href="#quickstart">⚡ Старт</a>
+    <a href="#setup">🔌 Подключение</a>
+    <a href="#wifi">📶 Wi-Fi</a>
+    <a href="#panel">🛡 Панель</a>
+    <a href="#status">📊 Статусы</a>
+    <a href="#internet">🌐 Интернет</a>
+    <a href="#vpn">🔐 VPN</a>
+    <a href="#guest">🏠 Гостевая</a>
+    <a href="#parental">🔒 Дети</a>
+    <a href="#problems">🔧 Проблемы</a>
+    <a href="#subscription">💎 Подписка</a>
+    <a href="#glossary">📖 Словарик</a>
+    <a href="#faq">❓ FAQ</a>
+    <a href="#reset">🔘 Reset</a>
+    <a href="#support">🎧 Поддержка</a>
+  </nav>
+</div>
+
+<div class="content">
+
+<!-- QUICKSTART -->
+<div class="section" id="quickstart">
+  <div class="section-title">⚡ <span>Первые 5 минут — с чего начать</span></div>
+  <div class="card">
+    <h3>🚀 Сделайте эти шаги и всё заработает</h3>
+    <div class="info-box"><div class="t-icon">🔌</div><div>Только распаковали роутер? Сначала <a href="#setup" style="color:var(--acc)">подключите его</a> (кабель + питание), потом возвращайтесь сюда.</div></div>
+    <div class="qs-grid">
+      <div class="qs-item">
+        <div class="qs-num">1</div>
+        <div class="qs-text"><b>Подключитесь к Wi-Fi</b>Найдите сеть Atlanta-2.4 или Atlanta-5, пароль: 11111111</div>
+      </div>
+      <div class="qs-item">
+        <div class="qs-num">2</div>
+        <div class="qs-text"><b>Откройте панель</b>В браузере: atlanta.lan или 192.168.14.1</div>
+      </div>
+      <div class="qs-item">
+        <div class="qs-num">3</div>
+        <div class="qs-text"><b>Войдите</b>Логин: admin / Пароль: admin. Смените после входа!</div>
+      </div>
+      <div class="qs-item">
+        <div class="qs-num">4</div>
+        <div class="qs-text"><b>Включите VPN</b>На главном экране найдите блок «🛡 VPN и сервер» → Включить VPN</div>
+      </div>
+      <div class="qs-item">
+        <div class="qs-num">5</div>
+        <div class="qs-text"><b>Готово!</b>Дождитесь зелёного VPN — все сервисы доступны</div>
+      </div>
+    </div>
+    <div class="tip" style="margin-top:12px"><div class="t-icon">💡</div><div>Что-то не работает? Смотрите раздел <a href="#problems" style="color:var(--acc)">Частые проблемы</a> или пишите в <a href="#support" style="color:var(--acc)">поддержку</a>.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SETUP -->
+<div class="section" id="setup">
+  <div class="section-title">🔌 <span>Подключение роутера</span></div>
+
+  <div class="card">
+    <h3>📦 Что в коробке</h3>
+    <ul>
+      <li><b>Роутер</b> Atlanta</li>
+      <li><b>Блок питания</b> (адаптер в розетку)</li>
+      <li><b>Сетевой кабель</b> (короткий патч-корд)</li>
+    </ul>
+    <div class="tip"><div class="t-icon">💡</div><div>Поставьте роутер повыше и подальше от микроволновки и толстых стен — так Wi-Fi берёт лучше.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🧩 Порты на задней панели</h3>
+    <ul>
+      <li><b>WAN</b> (часто синий или подписан Internet) — сюда кабель <b>от провайдера</b> или от другого роутера</li>
+      <li><b>LAN 1–4</b> (жёлтые) — сюда кабель к компьютеру, телевизору или приставке</li>
+      <li><b>POWER / DC</b> — блок питания</li>
+      <li><b>Reset</b> — утопленная кнопка сброса</li>
+    </ul>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Главное правило: кабель <b>интернета всегда в порт WAN</b>. Если воткнуть в LAN — интернета не будет.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>▶️ Подключение по шагам</h3>
+    <ol class="steps">
+      <li>Вставьте кабель провайдера в порт <b>WAN</b></li>
+      <li>Подключите блок питания и включите в розетку</li>
+      <li>Подождите <b>30–40 секунд</b> — роутер загружается</li>
+      <li>Когда лампочки загорятся — подключайтесь к <b>Wi-Fi</b> (см. ниже)</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔗 Подключить наш роутер за другим роутером</h3>
+    <p>Если у вас уже стоит роутер провайдера и вы хотите добавить наш (для VPN) — соедините их кабелем:</p>
+    <ol class="steps">
+      <li>Возьмите сетевой кабель из комплекта</li>
+      <li>Один конец — в <b>LAN-порт старого роутера</b> (жёлтый, любой свободный)</li>
+      <li>Второй конец — в <b>WAN-порт нашего роутера</b></li>
+      <li>Включите наш роутер, подождите 40 секунд</li>
+      <li>Зайдите в панель → «Настройки интернета» → выберите <b>DHCP</b> → <b>Сохранить</b></li>
+      <li>Через 10–20 сек в шапке появится IP — интернет есть</li>
+    </ol>
+    <div class="info-box"><div class="t-icon">ℹ️</div><div>Так наш роутер «берёт» интернет у вашего основного и пропускает его через VPN. Старый роутер при этом продолжает работать как обычно.</div></div>
+    <div class="tip"><div class="t-icon">💡</div><div>Подключайте устройства к <b>нашему</b> Wi-Fi (Atlanta-2.4 / Atlanta-5) — тогда они пойдут через VPN.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>💡 Лампочки на корпусе</h3>
+    <p>Названия зависят от модели, но обычно:</p>
+    <ul>
+      <li><b>Power (питание)</b> — горит ровно = роутер включён</li>
+      <li><b>Internet / WAN</b> — горит/мигает = интернет от провайдера есть</li>
+      <li><b>Wi-Fi / WLAN</b> — горит = Wi-Fi раздаётся</li>
+      <li><b>LAN</b> — горит = к порту подключён кабель</li>
+    </ul>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Лампочка <b>Internet не горит или красная</b> → проверьте кабель в порту WAN и см. раздел <a href="#internet" style="color:var(--acc)">Настройка интернета</a>.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🔌 Подключение по кабелю (ПК / ТВ)</h3>
+    <p>Не хотите по Wi-Fi? Подключите устройство кабелем:</p>
+    <ol class="steps">
+      <li>Вставьте кабель в любой <b>LAN-порт</b> (жёлтый) роутера</li>
+      <li>Второй конец — в компьютер, телевизор или приставку</li>
+      <li>Интернет появится автоматически — настраивать ничего не нужно</li>
+    </ol>
+    <div class="tip"><div class="t-icon">💡</div><div>Кабель удобен для телевизора и игровой приставки — стабильнее и быстрее, чем Wi-Fi.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- WIFI -->
+<div class="section" id="wifi">
+  <div class="section-title">📶 <span>Подключение к Wi-Fi</span></div>
+
+  <div class="card">
+    <h3>🔑 Данные для подключения</h3>
+    <p>Данные по умолчанию. Если вы меняли — смотрите в панели → Настройки Wi-Fi.</p>
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key">Сеть 2.4 ГГц</span><span class="wifi-val">Atlanta-2.4</span></div>
+      <div class="wifi-row"><span class="wifi-key">Сеть 5 ГГц</span><span class="wifi-val">Atlanta-5</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль</span><span class="wifi-val">11111111</span></div>
+    </div>
+    <div class="tip"><div class="t-icon">💡</div><div><b>5 ГГц</b> быстрее — выбирайте для телефонов и ноутбуков рядом с роутером. <b>2.4 ГГц</b> лучше пробивает стены.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>📱 iPhone / iPad</h3>
+    <ol class="steps">
+      <li>Откройте <b>Настройки → Wi-Fi</b></li>
+      <li>Найдите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
+      <li>Введите пароль и нажмите <b>Подключить</b></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🤖 Android</h3>
+    <ol class="steps">
+      <li>Откройте <b>Настройки → Подключения → Wi-Fi</b></li>
+      <li>Нажмите на <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
+      <li>Введите пароль → <b>Подключить</b></li>
+    </ol>
+    <div class="tip"><div class="t-icon">💡</div><div>Надпись «Без доступа к интернету» сразу после подключения — нормально, подождите 10–15 сек.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>💻 Windows</h3>
+    <ol class="steps">
+      <li>Нажмите иконку Wi-Fi в правом нижнем углу</li>
+      <li>Выберите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
+      <li>Нажмите <b>Подключить</b>, введите пароль</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🍎 macOS</h3>
+    <ol class="steps">
+      <li>Нажмите иконку Wi-Fi вверху справа</li>
+      <li>Выберите <b>Atlanta-5</b> или <b>Atlanta-2.4</b></li>
+      <li>Введите пароль → <b>Подключиться</b></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>📺 Smart TV / Приставка</h3>
+    <ol class="steps">
+      <li>Откройте <b>Настройки → Сеть → Wi-Fi</b> (название пункта зависит от модели)</li>
+      <li>Найдите <b>Atlanta-2.4</b> — большинство телевизоров не поддерживают 5 ГГц</li>
+      <li>Введите пароль с экранной клавиатуры → подключить</li>
+    </ol>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Телевизоры в основной сети работают через VPN. Если нужно без VPN — подключите к <a href="#guest" style="color:var(--acc)">гостевой сети</a>.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🔑 Как сменить название и пароль Wi-Fi</h3>
+    <ol class="steps">
+      <li>Откройте панель → раздел <b>«Настройки Wi-Fi»</b></li>
+      <li>Измените название сети (SSID) и/или пароль</li>
+      <li>Нажмите <b>💾 Сохранить</b></li>
+      <li>Все устройства отключатся — переподключитесь с новым паролем</li>
+    </ol>
+    <div class="tip"><div class="t-icon">💡</div><div>Менять можно 2.4 ГГц и 5 ГГц отдельно. Если хотите один пароль — введите одинаковый в оба поля.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PANEL -->
+<div class="section" id="panel">
+  <div class="section-title">🛡 <span>Панель управления</span></div>
+
+  <div class="card">
+    <h3>🌐 Как открыть панель</h3>
+    <p>Подключитесь к Wi-Fi роутера, затем в браузере:</p>
+    <div class="highlight"><div class="icon">🔗</div><div><a href="http://atlanta.lan/" style="color:var(--acc);font-weight:700">http://atlanta.lan/</a> &nbsp;—&nbsp; <a href="http://192.168.14.1/" style="color:var(--acc);font-weight:700">http://192.168.14.1/</a></div></div>
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key">Логин</span><span class="wifi-val">admin</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль</span><span class="wifi-val">admin</span></div>
+    </div>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>После первого входа <b>смените пароль</b>: боковое меню → ⚙️ Расширенные настройки → «🔐 Доступ к панели управления».</div></div>
+    <div class="tip"><div class="t-icon">💡</div><div>Вводите адрес в <b>адресную строку</b> браузера (вверху), а не в поиск Google. Иначе откроется поисковик, а не панель.</div></div>
+    <div class="tip"><div class="t-icon">💡</div><div>Адрес — <b>http://</b>, не https. Если браузер добавляет «s» — уберите вручную.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🏠 Главный экран</h3>
+    <ul>
+      <li><b>Настройки интернета</b> — тип подключения, данные PPPoE</li>
+      <li><b>Настройки Wi-Fi</b> — сменить название сети и пароль</li>
+      <li><b>🛡 VPN и сервер</b> — включить VPN и выбрать сервер прямо здесь</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>☰ Боковое меню</h3>
+    <ul>
+      <li><b>💎 Подписка</b> — управление подпиской</li>
+      <li><b>🎧 Поддержка</b> — написать нам</li>
+      <li><b>🔁 Перезапустить интернет</b> — переподключиться к провайдеру, если интернет завис</li>
+      <li><b>🔄 Обновить подписку</b> — загрузить новые серверы</li>
+      <li><b>🔄 Обновить роутер</b> — обновить панель (настройки не трогает)</li>
+      <li><b>⚙️ Расширенные настройки</b> — гостевая сеть, детский режим, доступ</li>
+      <li><b>🚪 Выйти</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>🧙 Мастер настройки</h3>
+    <p>Быстрая пошаговая настройка роутера — тип интернета, Wi-Fi, VPN за 3 шага.</p>
+    <ol class="steps">
+      <li>Боковое меню → <b>Мастер настройки</b></li>
+      <li>Выберите тип интернета (DHCP / PPPoE / Статический)</li>
+      <li>Установите имя и пароль Wi-Fi</li>
+      <li>Убедитесь что VPN включён → готово</li>
+    </ol>
+    <div class="tip"><div class="t-icon">💡</div><div>Мастер удобен при первом запуске или если нужно быстро всё перенастроить с нуля.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>📱 MAC-адрес роутера</h3>
+    <p>Виден в шапке панели рядом с кнопкой VPN. Или откройте отдельную страницу:</p>
+    <div class="highlight"><div class="icon">🔗</div><div><a href="http://atlanta.lan/my-mac/" style="color:var(--acc);font-weight:700">http://atlanta.lan/my-mac/</a></div></div>
+    <p>Нажмите 📋 — скопируется одним касанием. Нужен при обращении в поддержку.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- STATUS -->
+<div class="section" id="status">
+  <div class="section-title">📊 <span>Статусы и индикаторы</span></div>
+
+  <div class="card">
+    <h3>🔵 Цветные точки</h3>
+    <div class="status-demo">
+      <span class="sdot-demo"><span class="dot-g"></span>Работает</span>
+      <span class="sdot-demo"><span class="dot-r"></span>Недоступен</span>
+      <span class="sdot-demo"><span class="dot-y"></span>Ограничен</span>
+      <span class="sdot-demo"><span class="dot-b"></span>Проверка…</span>
+    </div>
+    <ul>
+      <li><b style="color:#27c97a">● Зелёный</b> — работает нормально</li>
+      <li><b style="color:#f04040">● Красный</b> — недоступен</li>
+      <li><b style="color:#f0b030">● Жёлтый</b> — ограничен или медленно</li>
+      <li><b style="color:#888">● Серый / мигает</b> — идёт проверка</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>🏓 Пинг серверов — URL Test</h3>
+    <p>Нажмите <b>🏓 URL Test</b> в блоке VPN — роутер проверит каждый сервер:</p>
+    <div class="status-demo">
+      <span class="sdot-demo"><span class="dot-g"></span>🟢 &lt;80ms — отлично</span>
+      <span class="sdot-demo"><span class="dot-y"></span>🟡 80–200ms — норм</span>
+      <span class="sdot-demo"><span class="dot-r"></span>🔴 &gt;200ms — медленно</span>
+    </div>
+    <div class="status-demo">
+      <span class="sdot-demo"><span class="dot-b"></span>⏰ тайм — не отвечает</span>
+      <span class="sdot-demo"><span class="dot-r"></span>✗ — порт закрыт</span>
+    </div>
+    <div class="tip"><div class="t-icon">💡</div><div>Серверы с <b>⏰ тайм</b> или <b>✗</b> — не выбирайте. Если все такие — нажмите «Обновить подписку».</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🎯 Режимы YouTube</h3>
+    <p>Переключаются в боковом меню → ⚙️ Расширенные настройки → <b>«▶️ Режим YouTube»</b>.</p>
+    <ul>
+      <li><b>Основной</b> — трафик идёт напрямую, быстро, работает у большинства</li>
+      <li><b>Запасной</b> — через VPN, если Основной не помогает</li>
+    </ul>
+    <div class="tip"><div class="t-icon">💡</div><div>После выбора нажмите <b>💾 Сохранить режим</b>.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- INTERNET -->
+<div class="section" id="internet">
+  <div class="section-title">🌐 <span>Настройка интернета (WAN)</span></div>
+
+  <div class="card">
+    <h3>⚡ Типы подключения</h3>
+    <ul>
+      <li><b>DHCP</b> — автоматически, подходит большинству</li>
+      <li><b>PPPoE</b> — нужны логин и пароль из договора</li>
+      <li><b>Статический IP</b> — фиксированный адрес от провайдера</li>
+      <li><b>L2TP / PPTP</b> — туннельное подключение</li>
+    </ul>
+    <div class="tip"><div class="t-icon">💡</div><div>Не знаете тип? Попробуйте <b>DHCP</b>. Данные для PPPoE есть в договоре с провайдером.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🔧 Настройка PPPoE</h3>
+    <ol class="steps">
+      <li>Блок <b>«Настройки интернета»</b> → выберите <b>PPPoE</b></li>
+      <li>Введите логин и пароль из договора</li>
+      <li>Нажмите <b>💾 Сохранить</b></li>
+      <li>Подождите 10–20 сек — в шапке появится IP-адрес</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔁 Интернет пропал — что делать по порядку</h3>
+    <p>Идите по шагам сверху вниз — переходите к следующему, только если предыдущий не помог.</p>
+    <ol class="steps">
+      <li>Проверьте, что кабель провайдера вставлен в порт <b>WAN</b></li>
+      <li>Боковое меню → <b>🔁 Перезапустить интернет</b> — роутер переподключится к провайдеру (~10 сек, роутер не выключается)</li>
+      <li>Не помогло? Откройте «Настройки интернета» → <b>↺ Перезагрузить роутер</b> — полный перезапуск (~40 сек)</li>
+      <li>Всё ещё нет? <b>Выньте роутер из розетки на 10 секунд</b> и включите снова</li>
+      <li>IP появился, но сайтов нет → проверьте <b>тип подключения</b> (для PPPoE — логин и пароль из договора)</li>
+      <li>Ничего не помогло — <a href="#support" style="color:var(--acc)">напишите в поддержку</a></li>
+    </ol>
+    <div class="info-box"><div class="t-icon">ℹ️</div><div><b>Перезапустить интернет</b> — быстро, роутер продолжает работать. <b>Перезагрузить роутер</b> — полный перезапуск железа, дольше (30–40 сек).</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- VPN -->
+<div class="section" id="vpn">
+  <div class="section-title">🔐 <span>VPN</span></div>
+
+  <div class="card">
+    <h3>ℹ️ Что такое VPN и зачем он нужен</h3>
+    <p>VPN — это зашифрованный туннель через который идёт ваш трафик. С ним работают YouTube, Instagram, Telegram, ChatGPT и другие заблокированные сервисы.</p>
+    <div class="info-box"><div class="t-icon">🌍</div><div>Роутер сам направляет нужный трафик через VPN, а обычный (банки, ВКонтакте, почта) — напрямую. Дополнительно ничего настраивать не нужно.</div></div>
+    <div class="highlight"><div class="icon">📵</div><div><b>Не нужно ставить VPN-приложение</b> на телефон, ноутбук или телевизор. VPN работает прямо на роутере — все устройства в его Wi-Fi уже защищены.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>▶️ Включить / выключить VPN</h3>
+    <p>На главном экране в блоке <b>«🛡 VPN и сервер»</b>. Также VPN-чип виден в шапке рядом с MAC.</p>
+    <ol class="steps">
+      <li>Нажмите <b>Включить VPN</b> (или кликните на чип «VPN» в шапке)</li>
+      <li>Подождите <b>5–8 секунд</b> — применяется в фоне</li>
+      <li>Индикатор <b style="color:#27c97a">VPN станет зелёным</b></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🎯 Выбор сервера</h3>
+    <ol class="steps">
+      <li>В блоке «🛡 VPN и сервер» нажмите <b>🏓 URL Test</b></li>
+      <li>Дождитесь пингов (5–10 сек)</li>
+      <li>Выберите сервер с <span class="badge badge-ok">🟢 зелёным пингом</span></li>
+      <li>Нажмите <b>Применить</b> — панель сама проверит сервер через 8 сек</li>
+    </ol>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Если появится предупреждение «⏰ Сервер не отвечает» — обновите подписку и выберите другой сервер.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🔄 Обновление подписки</h3>
+    <p>Обновляется <b>автоматически в 04:00</b>. Вручную — если серверы перестали работать прямо сейчас:</p>
+    <ol class="steps">
+      <li>Боковое меню → <b>🔄 Обновить подписку</b></li>
+      <li>Подождите 20–40 секунд</li>
+      <li>Обновите страницу — появятся новые серверы</li>
+    </ol>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- GUEST -->
+<div class="section" id="guest">
+  <div class="section-title">🏠 <span>Гостевая сеть</span></div>
+
+  <div class="card">
+    <h3>ℹ️ Зачем нужна</h3>
+    <ul>
+      <li>Отдельная сеть для гостей, детей, телевизоров, умных устройств</li>
+      <li>Устройства <b>изолированы</b> — не видят вашу домашнюю сеть</li>
+      <li>Работает <b>без VPN</b> — прямой интернет</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>▶️ Как включить</h3>
+    <ol class="steps">
+      <li>Боковое меню → <b>⚙️ Расширенные настройки</b></li>
+      <li>Откройте раздел <b>«🏠 Гостевая сеть и родительский контроль»</b></li>
+      <li>При желании задайте название и пароль</li>
+      <li>Нажмите <b>✅ Включить гостевую</b></li>
+      <li>Через 10–15 сек появится сеть <b>Atlanta-Guest</b></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>⏹ Как отключить</h3>
+    <p>В том же разделе нажмите <b>✖ Отключить гостевую</b>. Сеть исчезнет через несколько секунд.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PARENTAL -->
+<div class="section" id="parental">
+  <div class="section-title">🔒 <span>Детский режим</span></div>
+
+  <div class="card">
+    <h3>ℹ️ Как работает</h3>
+    <p>Детский режим — это часть раздела <b>«🏠 Гостевая сеть и родительский контроль»</b>. Применяется только к гостевой сети (Atlanta-Guest): включите гостевую и подключите к ней устройство ребёнка.</p>
+    <ul>
+      <li><b>🛡 Безопасный DNS</b> — блокирует сайты 18+, казино, нежелательный контент (Yandex.DNS Family)</li>
+      <li><b>⏰ Расписание</b> — интернет выключается по времени</li>
+      <li><b>Блокировать сайты</b> — конкретные домены через запятую</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>▶️ Настройка</h3>
+    <ol class="steps">
+      <li>Сначала включите <a href="#guest" style="color:var(--acc)">гостевую сеть</a></li>
+      <li>Подключите устройство ребёнка к <b>Atlanta-Guest</b></li>
+      <li>Расширенные → <b>«🏠 Гостевая сеть и родительский контроль»</b> → включите <b>🛡 Безопасный DNS</b></li>
+      <li>При желании настройте расписание и список блокировок</li>
+      <li>Нажмите <b>💾 Сохранить</b></li>
+    </ol>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Блокировки работают только для устройств в сети <b>Atlanta-Guest</b>.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- PROBLEMS -->
+<div class="section" id="problems">
+  <div class="section-title">🔧 <span>Частые проблемы и решения</span></div>
+
+  <div class="card">
+    <h3>🔴 YouTube / видео не работает</h3>
+    <ol class="steps">
+      <li>Убедитесь что <b>VPN включён</b> (зелёный)</li>
+      <li>Нажмите <b>🏓 URL Test</b> и выберите сервер с зелёным пингом</li>
+      <li>Попробуйте переключить режим YouTube: <b>Основной → Запасной</b></li>
+      <li>Нажмите <b>🔄 Обновить подписку</b></li>
+      <li>Подождите 1–2 минуты и проверьте снова</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Telegram / Instagram не работает</h3>
+    <ol class="steps">
+      <li>Убедитесь что <b>VPN включён</b></li>
+      <li>Выключите VPN и через 5 сек включите снова</li>
+      <li>Подождите 10 секунд</li>
+      <li>Если не помогло — выберите другой сервер с зелёным пингом</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Нет интернета вообще</h3>
+    <ol class="steps">
+      <li>Проверьте кабель провайдера — должен быть в порту <b>WAN</b></li>
+      <li>Нажмите <b>🔁 Перезапустить интернет</b></li>
+      <li>Подождите 20 сек — должен появиться IP-адрес</li>
+      <li>Если нет — проверьте тип подключения (PPPoE логин/пароль)</li>
+      <li>Не помогло — <b>↺ Перезагрузить роутер</b> или короткое нажатие Reset</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Панель не открывается</h3>
+    <ol class="steps">
+      <li>Убедитесь что подключены к <b>Atlanta-2.4</b> или <b>Atlanta-5</b></li>
+      <li>Введите <b>http://192.168.14.1/</b> (именно http, не https)</li>
+      <li>Очистите кэш: <b>Ctrl+Shift+R</b> / <b>Cmd+Shift+R</b></li>
+      <li>Попробуйте другой браузер или режим инкогнито</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Забыл пароль от панели</h3>
+    <p>Зажмите <b>Reset</b> на роутере на <b>3+ секунды</b>. Пароль панели сбросится до <b>admin</b>. Wi-Fi и пароль Wi-Fi тоже сбросятся до заводских.</p>
+  </div>
+
+  <div class="card">
+    <h3>🔴 VPN включён, но ничего не работает</h3>
+    <ol class="steps">
+      <li>Подождите <b>8–10 секунд</b> после включения</li>
+      <li>Нажмите <b>🏓 URL Test</b> — проверьте пинги</li>
+      <li>Сервер <b>⏰ тайм</b> или <b>✗</b> — смените его</li>
+      <li>Нажмите <b>🔄 Обновить подписку</b></li>
+      <li>Если все серверы недоступны — <a href="#support" style="color:var(--acc)">напишите в поддержку</a></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Медленный интернет через VPN</h3>
+    <ol class="steps">
+      <li><b>🏓 URL Test</b> → выберите сервер с наименьшим зелёным пингом</li>
+      <li>Попробуйте режим YouTube <b>«Основной»</b> — быстрее, без нагрузки на сервер</li>
+      <li>Обновите подписку — могут появиться более быстрые серверы</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3>🔴 Роутер завис, не реагирует</h3>
+    <ol class="steps">
+      <li>Попробуйте открыть панель с другого устройства</li>
+      <li>Короткое нажатие <b>Reset</b> (до 3 сек) — перезагрузка</li>
+      <li>Если не помогло — <b>отключите роутер от розетки</b></li>
+      <li>Подождите <b>15 секунд</b> и включите снова</li>
+      <li>Дождитесь полной загрузки — около 40 секунд</li>
+    </ol>
+    <div class="tip"><div class="t-icon">💡</div><div>Отключение питания решает 90% случаев полного зависания.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SUBSCRIPTION -->
+<div class="section" id="subscription">
+  <div class="section-title">💎 <span>Подписка</span></div>
+
+  <div class="card">
+    <h3>ℹ️ Что такое подписка</h3>
+    <p>Подписка — доступ к серверам VPN. Без активной подписки серверы не работают.</p>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Если подписка закончилась — VPN включён (зелёный), но сайты не открываются. Все пинги станут ⏰ или ✗.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>🔍 Как понять что закончилась</h3>
+    <ul>
+      <li>Индикаторы YouTube, Telegram, ИИ — красные</li>
+      <li>VPN включён, но сайты не открываются</li>
+      <li>В URL Test все серверы: <b>⏰ тайм</b> или <b>✗</b></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>🔄 Как продлить</h3>
+    <ol class="steps">
+      <li>В боковом меню нажмите <b>💎 Подписка</b></li>
+      <li>Откроется бот управления подпиской — следуйте инструкциям</li>
+      <li>После оплаты нажмите <b>🔄 Обновить подписку</b> в панели</li>
+      <li>Подождите 30 сек — серверы появятся снова</li>
+    </ol>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- GLOSSARY -->
+<div class="section" id="glossary">
+  <div class="section-title">📖 <span>Словарик — простыми словами</span></div>
+  <div class="card">
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">VPN</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Защищённый «туннель» для обхода блокировок</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">WAN</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Порт для кабеля интернета (от провайдера)</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">LAN</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Порт для кабеля к ПК / ТВ / приставке</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">SSID</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Название Wi-Fi сети (напр. Atlanta-5)</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">DHCP</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Авто-настройка интернета (подходит большинству)</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">PPPoE</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Интернет по логину/паролю из договора</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">Пинг</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Скорость отклика сервера, мс — меньше лучше</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">DNS</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">«Справочник» адресов сайтов в интернете</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">IP-адрес</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Номер устройства в сети</span></div>
+      <div class="wifi-row"><span class="wifi-key" style="font-weight:700;color:var(--txt)">MAC</span><span class="wifi-val" style="font-family:inherit;font-weight:400;color:var(--mut);text-align:right">Уникальный «паспорт» роутера для поддержки</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FAQ -->
+<div class="section" id="faq">
+  <div class="section-title">❓ <span>Частые вопросы</span></div>
+
+  <details class="faq">
+    <summary class="faq">Нужно ли вручную обновлять подписку?</summary>
+    <div class="faq-body">Нет — обновляется <b>автоматически каждую ночь в 04:00</b>. Вручную — только если серверы перестали работать прямо сейчас.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Что значит ⏰ тайм и ✗ в пингах?</summary>
+    <div class="faq-body"><b>⏰ тайм</b> — сервер не отвечает на запросы. <b>✗</b> — порт закрыт. В обоих случаях этот сервер не выбирайте. Нажмите «Обновить подписку» — должны появиться рабочие.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Почему VPN замедляет интернет?</summary>
+    <div class="faq-body">Трафик проходит через сервер — добавляется задержка. Чтобы минимизировать: <ul><li>Выбирайте сервер с <b>низким зелёным пингом</b></li><li>Используйте режим YouTube «Основной» — он работает напрямую</li><li>Обновите подписку — могут появиться более быстрые серверы</li></ul></div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Как проверить что VPN работает?</summary>
+    <div class="faq-body">После включения: <ul><li>Индикатор «VPN» должен стать <b style="color:#27c97a">зелёным</b></li><li>Откройте 2ip.ru — IP должен отличаться от домашнего</li><li>Ранее недоступные сайты открываются</li></ul></div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Можно ли подключить телевизор без VPN?</summary>
+    <div class="faq-body">Да. Подключите телевизор к <b>гостевой сети Atlanta-Guest</b> — она работает без VPN, напрямую.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Что делает кнопка «Обновить роутер»?</summary>
+    <div class="faq-body">Обновляет программную часть панели управления. Ваши настройки (Wi-Fi, пароль, VPN, подписка) <b>не затрагиваются</b>.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Безопасна ли гостевая сеть?</summary>
+    <div class="faq-body">Да. Гостевая сеть <b>полностью изолирована</b> — устройства в Atlanta-Guest не видят ваши компьютеры, принтеры и умные устройства.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Роутер работает без интернета от провайдера?</summary>
+    <div class="faq-body">Wi-Fi раздаётся всегда. Но без интернета от провайдера VPN и все сервисы не работают.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Можно ли использовать роутер без VPN?</summary>
+    <div class="faq-body">Да. В блоке «🛡 VPN и сервер» нажмите <b>Выключить VPN</b>. Трафик пойдёт напрямую через провайдера. YouTube и заблокированные сервисы могут не работать.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Где найти MAC-адрес роутера?</summary>
+    <div class="faq-body">MAC виден в шапке панели рядом с кнопкой VPN. Нажмите 📋 — скопируется в буфер. Или откройте <a href="http://atlanta.lan/my-mac/" style="color:var(--acc)">atlanta.lan/my-mac/</a>. MAC нужен при обращении в поддержку.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Почему после смены Wi-Fi всё отключилось?</summary>
+    <div class="faq-body">Это нормально. После смены имени или пароля все устройства отключаются — они больше не знают новый пароль. Просто заново подключите их к новой сети с новым паролем.</div>
+  </details>
+
+  <details class="faq">
+    <summary class="faq">Можно ли подключить роутер к другому роутеру?</summary>
+    <div class="faq-body">Да — через кабель в порт WAN. Выберите тип подключения <b>DHCP</b> и нажмите «Сохранить». Интернет появится автоматически.</div>
+  </details>
+</div>
+
+<div class="divider"></div>
+
+<!-- RESET -->
+<div class="section" id="reset">
+  <div class="section-title">🔘 <span>Кнопка Reset</span></div>
+  <div class="card">
+    <h3>⚡ Как работает</h3>
+    <ul>
+      <li><b>Короткое нажатие</b> (до 3 сек) — <span class="badge badge-blue">перезагрузка роутера</span></li>
+      <li><b>Длинное нажатие</b> (3 сек и дольше) — <span class="badge badge-warn">сброс Wi-Fi и пароля панели</span></li>
+    </ul>
+    <div class="wifi-box" style="margin-top:12px">
+      <div class="wifi-row"><span class="wifi-key">Wi-Fi 2.4 ГГц после сброса</span><span class="wifi-val">Atlanta-2.4</span></div>
+      <div class="wifi-row"><span class="wifi-key">Wi-Fi 5 ГГц после сброса</span><span class="wifi-val">Atlanta-5</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль Wi-Fi после сброса</span><span class="wifi-val">11111111</span></div>
+      <div class="wifi-row"><span class="wifi-key">Логин панели после сброса</span><span class="wifi-val">admin</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль панели после сброса</span><span class="wifi-val">admin</span></div>
+    </div>
+    <div class="tip"><div class="t-icon">💡</div><div>Сброс <b>не удаляет</b> подписку и настройки провайдера (PPPoE) — только Wi-Fi и пароль панели.</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- SUPPORT -->
+<div class="section" id="support">
+  <div class="section-title">🎧 <span>Поддержка</span></div>
+  <div class="card" style="text-align:center">
+    <h3 style="justify-content:center;margin-bottom:8px">Не смогли решить проблему?</h3>
+    <p>Напишите нам — поможем. Укажите <b>MAC-адрес</b> роутера при обращении.</p>
+    <div class="support-row">
+      <a class="support-btn primary" href="https://t.me/AtlantaVPNSUPPORT_bot" target="_blank" rel="noopener">🎧 Написать в поддержку</a>
+      <a class="support-btn secondary" href="https://atlanta-vps.com/dashboard" target="_blank" rel="noopener">💎 Подписка</a>
+    </div>
+    <div class="highlight" style="margin-top:16px;text-align:left">
+      <div class="icon">🔍</div>
+      <div>MAC-адрес: <a href="http://atlanta.lan/my-mac/" style="color:var(--acc);font-weight:700">atlanta.lan/my-mac/</a></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Наверх">↑</button>
+
+<script>
+(function(){
+  var btn = document.getElementById('scrollTop');
+  window.addEventListener('scroll', function(){
+    btn.classList.toggle('visible', window.scrollY > 300);
+  }, {passive:true});
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t || 'light');
+    var b = document.getElementById('themeBtn');
+    if(b) b.textContent = (t === 'dark') ? '☀️' : '🌙';
+  }
+  window.toggleTheme = function(){
+    var c = document.documentElement.getAttribute('data-theme') || 'light';
+    var n = c === 'light' ? 'dark' : 'light';
+    applyTheme(n);
+    try{ localStorage.setItem('atlTheme', n); } catch(e){}
+  };
+  try{ applyTheme(localStorage.getItem('atlTheme') || 'light'); } catch(e){ applyTheme('light'); }
+})();
+</script>
+
+</body>
+</html>
+INSTREOF
+ok 'instruction.html установлен'
+
+step '[2/2] Перезапускаем uhttpd'
+/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+ok 'uhttpd перезапущен'
+
+printf '\n'
+printf "${CG}╔══════════════════════════════════════════╗${C0}\n"
+printf "${CG}║   ✅  ИНСТРУКЦИЯ УСТАНОВЛЕНА!             ║${C0}\n"
+printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
+printf "${CG}║${C0}  Открыть: ${CB}http://atlanta.lan/instruction.html${C0}  ${CG}║${C0}\n"
+printf "${CG}╚══════════════════════════════════════════╝${C0}\n\n"
+EOF
+
+sh /tmp/install_atlanta_instruction.sh
 
 exit 0
