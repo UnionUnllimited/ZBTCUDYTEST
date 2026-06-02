@@ -100,7 +100,7 @@ config global_subscribe
 
 config subscribe_list
 	option remark 'AtlantaRouter'
-	option url 'https://t--8g.atlanta-subs.ru/FKJsY-tT36skcFzS'
+	option url 'https://t--8g.atlanta-subs.ru/71SSAX3EUVzZ6AK7'
 	option allowInsecure '0'
 	option filter_keyword_mode '5'
 	option ss_type 'global'
