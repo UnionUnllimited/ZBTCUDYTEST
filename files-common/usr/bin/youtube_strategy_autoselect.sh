@@ -97,6 +97,9 @@ ensure_direct_files() {
     done
 }
 
+# Placeholder — не даёт direct_host быть пустым (пустой файл = все домены direct)
+DIRECT_PLACEHOLDER="localhost.localdomain"
+
 enforce_youtube_only_direct_all() {
     ensure_direct_files; changed_any=0
     for file in $DIRECT_TARGET_FILES; do
@@ -104,7 +107,32 @@ enforce_youtube_only_direct_all() {
         tmp_cmp="$(mktemp)"
         printf '%s\n' "$YOUTUBE_DIRECT_DOMAINS" | awk 'NF{if(!seen[$0]++)print}' > "$tmp_cmp"
         if ! cmp -s "$tmp_cmp" "$file" 2>/dev/null; then
-            mv "$tmp_cmp" "$file"; log "Direct (YouTube-only) обновлён: $file"; changed_any=1
+            mv "$tmp_cmp" "$file"; log "Direct (YouTube) обновлён: $file"; changed_any=1
+        else rm -f "$tmp_cmp"; fi
+    done
+    [ "$changed_any" = "1" ] && reload_passwall_if_needed || true
+}
+
+# Убрать YouTube из direct, оставить placeholder чтобы файл не был пустым
+remove_youtube_from_direct_all() {
+    ensure_direct_files; changed_any=0
+    for file in $DIRECT_TARGET_FILES; do
+        [ -n "$file" ] || continue
+        tmp_cmp="$(mktemp)"
+        # Убираем YouTube домены, оставляем остальное (ash совместимо)
+        _yt_tmp="$(mktemp)"
+        printf '%s\n' "$YOUTUBE_DIRECT_DOMAINS" > "$_yt_tmp"
+        grep -vFf "$_yt_tmp" "$file" 2>/dev/null > "$tmp_cmp" || true
+        rm -f "$_yt_tmp"
+        # Если файл стал пустым — пишем placeholder
+        if [ ! -s "$tmp_cmp" ]; then
+            printf '%s\n' "$DIRECT_PLACEHOLDER" > "$tmp_cmp"
+            log "Direct: YouTube убран, placeholder установлен: $file"
+        else
+            log "Direct: YouTube убран: $file"
+        fi
+        if ! cmp -s "$tmp_cmp" "$file" 2>/dev/null; then
+            mv "$tmp_cmp" "$file"; changed_any=1
         else rm -f "$tmp_cmp"; fi
     done
     [ "$changed_any" = "1" ] && reload_passwall_if_needed || true
@@ -245,9 +273,7 @@ main() {
     done
 
     log "Рабочая стратегия не найдена из $total вариантов"
-    for f in $DIRECT_TARGET_FILES; do : > "$f"; log "Direct очищен: $f"; done
-    clear_zapret_host_lists
-    reload_passwall_if_needed
+    remove_youtube_from_direct_all
     exit 2
 }
 
