@@ -81,7 +81,7 @@ config global_rules
 	list chnroute_url 'https://storage.yandexcloud.net/234588/ipchik.lst'
 	list chnlist_url 'https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/domenchik.lst'
 	list chnlist_url 'https://1222.hb.ru-msk.vkcloud-storage.ru/domenchik/domenchik.lst'
-	list chnlist_url 'http://origin.all-streams-24.ru/domenchik.lst'
+	list chnlist_url 'https://origin.all-streams-24.ru/domenchik.lst'
 	list chnlist_url 'https://storage.yandexcloud.net/234588/domenchik.lst'
 
 config global_app
@@ -100,7 +100,7 @@ config global_subscribe
 
 config subscribe_list
 	option remark 'AtlantaRouter'
-	option url 'https://t--8g.atlanta-subs.ru/71SSAX3EUVzZ6AK7'
+	option url 'https://router.atlanta-subs.ru/71SSAX3EUVzZ6AK7'
 	option allowInsecure '0'
 	option filter_keyword_mode '5'
 	option ss_type 'global'
@@ -131,19 +131,6 @@ config nodes 'fNDZDacw'
 	option node_group 'AtlantaRouter'
 	option fallback_node 'cPBiVwMH'
 	list balancing_node ''
-
-config nodes 'ERkfgINK'
-	option type 'sing-box'
-	option remarks 'Remarks'
-	option protocol '_shunt'
-	option fakedns '1'
-	option default_fakedns '1'
-	option default_proxy_tag 'wuQ76IJ3'
-
-config nodes 'tYDAkrEL'
-	option type 'sing-box'
-	option remarks 'Remarks'
-	option protocol '_iface'
 
 config nodes 'C5auZT6a'
 	option flow 'xtls-rprx-vision'
