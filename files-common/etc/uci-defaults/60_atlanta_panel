@@ -4242,6 +4242,13 @@ C0='\033[0m'; CB='\033[1;36m'; CG='\033[1;32m'
 ok(){ printf "  ${CG}\xe2\x9c\x94  %s${C0}\n" "$*"; }
 printf "${CB}Atlanta Router \xe2\x80\x94 \xd1\x83\xd1\x81\xd1\x82\xd0\xb0\xd0\xbd\xd0\xbe\xd0\xb2\xd0\xba\xd0\xb0 \xd0\xb8\xd0\xbd\xd1\x81\xd1\x82\xd1\x80\xd1\x83\xd0\xba\xd1\x86\xd0\xb8\xd0\xb8${C0}\n"
 
+cat <<'EOF' > /tmp/install_atlanta_instruction.sh
+#!/bin/sh
+set -eu
+C0='\033[0m'; CB='\033[1;36m'; CG='\033[1;32m'
+ok(){ printf "  ${CG}\xe2\x9c\x94  %s${C0}\n" "$*"; }
+printf "${CB}Atlanta Router \xe2\x80\x94 \xd1\x83\xd1\x81\xd1\x82\xd0\xb0\xd0\xbd\xd0\xbe\xd0\xb2\xd0\xba\xd0\xb0 \xd0\xb8\xd0\xbd\xd1\x81\xd1\x82\xd1\x80\xd1\x83\xd0\xba\xd1\x86\xd0\xb8\xd0\xb8${C0}\n"
+
 cat > /www/instruction.html << 'INSTREOF'
 <!doctype html>
 <html lang="ru">
@@ -4304,6 +4311,16 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
 .support-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:13px;font-size:15px;font-weight:700;text-decoration:none;margin:6px}
 .support-btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
 .support-btn.secondary{background:var(--s1);border:1px solid var(--b1);color:var(--txt)}
+.conn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 4px}
+@media(max-width:520px){.conn-grid{grid-template-columns:1fr}}
+.conn-card{background:var(--s2);border:1px solid var(--b1);border-radius:13px;padding:14px 16px}
+.conn-card .conn-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--txt);margin-bottom:6px}
+.conn-card p{font-size:13px;color:var(--mut);margin:0}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(128,128,128,.12)}
+.opt:last-child{border-bottom:0}
+.opt-num{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:var(--s2);border:1px solid var(--b1);color:var(--acc);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.opt-body{font-size:14px;color:var(--mut)}
+.opt-body b{color:var(--txt)}
 </style>
 </head>
 <body>
@@ -4317,6 +4334,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
   <div class="hero-sub">Подключение · Настройка · Решение проблем</div>
   <nav class="toc">
     <a href="#quickstart">⚡ Старт</a>
+    <a href="#mac">🧷 Привязка MAC</a>
     <a href="#wifi">📶 Wi-Fi</a>
     <a href="#panel">🛡 Панель</a>
     <a href="#wizard">🧙 Мастер</a>
@@ -4337,16 +4355,73 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
 <div class="content">
 
 <div class="section" id="quickstart">
-  <div class="section-title">⚡ <span>Первые 5 минут</span></div>
+  <div class="section-title">⚡ <span>Быстрый старт</span></div>
   <div class="card">
-    <ol class="steps">
-      <li><b>Подключитесь к Wi-Fi.</b> Найдите сеть Atlanta-2.4 или Atlanta-5 — сеть открытая, пароль не нужен</li>
-      <li><b>Откройте панель.</b> В адресной строке браузера: 192.168.14.1 или atlanta.lan</li>
-      <li><b>Войдите.</b> Логин admin / пароль admin. Сразу смените их (раздел «Доступ к панели»)</li>
-      <li><b>Проверьте VPN.</b> В блоке «🛡 VPN и сервер» VPN должен быть включён (зелёный)</li>
-      <li><b>Готово.</b> Заблокированные сервисы работают через VPN автоматически</li>
-    </ol>
-    <div class="tip"><div>💡</div><div>Сразу задайте пароль Wi-Fi в панели → «Настройки Wi-Fi» — открытую сеть видят все соседи.</div></div>
+    <h3>🔌 Шаг 1. Подключение кабеля провайдера</h3>
+    <p>Вставьте кабель, заведённый в квартиру провайдером, в порт <b>WAN</b> на задней панели роутера. Без подключённого кабеля доступ в интернет невозможен.</p>
+    <div class="info-box"><div>ℹ️</div><div>Порт <b>WAN</b> предназначен исключительно для кабеля провайдера. Остальные порты (<b>LAN</b>) служат для подключения домашних устройств.<br><a href="http://atlanta.lan/instruction.html#mac" style="color:var(--acc);font-weight:600">Почему после подключения кабеля может не быть интернета →</a></div></div>
+  </div>
+  <div class="card">
+    <h3>🖥 Шаг 2. Подключение к роутеру</h3>
+    <p>Выберите удобный способ подключения вашего устройства:</p>
+    <div class="conn-grid">
+      <div class="conn-card">
+        <div class="conn-h">📶 По Wi-Fi</div>
+        <p>Подключитесь к сети <b>Atlanta-2.4</b> или <b>Atlanta-5</b>. По умолчанию сеть открытая, пароль не требуется.</p>
+      </div>
+      <div class="conn-card">
+        <div class="conn-h">🔗 По кабелю</div>
+        <p>Если на компьютере отсутствует Wi-Fi, соедините его с любым портом <b>LAN</b> роутера сетевым кабелем.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🛡 Шаг 3. Вход в панель управления</h3>
+    <p>Откройте браузер и введите в адресной строке <b>192.168.14.1</b> или <b>atlanta.lan</b>. Для входа используйте логин <b>admin</b> и пароль <b>admin</b>. Сразу после входа смените их в разделе «Доступ к панели».</p>
+  </div>
+  <div class="card">
+    <h3>🔐 Шаг 4. Проверка VPN</h3>
+    <p>В блоке «🛡 VPN и сервер» убедитесь, что VPN включён — индикатор должен быть зелёным. Заблокированные сервисы начинают работать через VPN автоматически.</p>
+    <div class="tip"><div>💡</div><div>Рекомендуем сразу задать пароль Wi-Fi в панели → «Настройки Wi-Fi»: открытую сеть видят все соседи.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="mac">
+  <div class="section-title">🧷 <span>Интернет не появляется после подключения кабеля</span></div>
+  <div class="card">
+    <h3>ℹ️ Возможная причина — привязка по MAC-адресу</h3>
+    <p>Некоторые провайдеры «привязывают» подключение к MAC-адресу того устройства, которое было подключено к кабелю ранее (старого роутера или компьютера). При замене оборудования интернет не включается до тех пор, пока привязка не будет обновлена.</p>
+    <p>Признак: кабель в порту <b>WAN</b>, тип подключения выбран верно, но IP-адрес от провайдера не выдаётся.</p>
+    <div class="info-box"><div>ℹ️</div><div>Если у провайдера нет привязки по MAC, интернет появляется сразу — этот раздел можно пропустить.</div></div>
+  </div>
+  <div class="card">
+    <h3>✅ Как решить — три варианта</h3>
+    <div class="opt">
+      <div class="opt-num">1</div>
+      <div class="opt-body"><b>Обратиться к провайдеру.</b> Позвоните в техническую поддержку и попросите перепривязать подключение на новое устройство. Понадобится <b>MAC-адрес</b> роутера — он указан в шапке панели и на странице <a href="http://atlanta.lan/my-mac/" style="color:var(--acc)">atlanta.lan/my-mac/</a>.</div>
+    </div>
+    <div class="opt">
+      <div class="opt-num">2</div>
+      <div class="opt-body"><b>Подключить через существующий роутер.</b>
+Если ранее у вас стоял другой роутер, который провайдер уже «знает»,
+подключите кабель провайдера в его порт <b>WAN</b>, а кабель из его
+порта <b>LAN</b> — в порт <b>WAN</b> роутера Atlanta. Atlanta получит
+интернет от первого роутера, и привязка провайдера сохранится.<br><br>
+<b>Важно:</b> образуется двойной NAT (сеть за сетью). Возможны проблемы
+с онлайн-играми, видеозвонками, IPTV и пробросом портов, иногда
+небольшое снижение скорости. Этот способ запасной — надёжнее
+перепривязать подключение у провайдера (вариант 1).</div>
+    </div>
+    <div class="opt">
+      <div class="opt-num">3</div>
+      <div class="opt-body"><b>Попробовать сменить тип подключения.</b>
+Откройте панель → «Настройки интернета» и проверьте тип подключения
+провайдера — при неверном типе интернета не будет. Как выбрать тип и
+что вводить, описано в разделе
+<a href="http://atlanta.lan/instruction.html#internet" style="color:var(--acc)">«Настройка интернета (WAN)»</a>.</div>
+    </div>
+    <div class="warn-box"><div>⚠️</div><div>Самый надёжный способ — вариант 1. После перепривязки провайдером роутер можно подключать кабелем напрямую, без промежуточного оборудования.</div></div>
   </div>
 </div>
 <div class="divider"></div>
@@ -4477,7 +4552,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
       <li><b>Протокол</b> — dhcp, pppoe и т.д.</li>
       <li><b>IP-адрес, Шлюз, DNS</b> — от провайдера</li>
     </ul>
-    <div class="info-box"><div>ℹ️</div><div>Эти данные пригодятся поддержке, если интернет не поднимается.</div></div>
+    <div class="info-box"><div>ℹ️</div><div>Эти данные пригодятся поддержке, если интернет не включается.</div></div>
   </div>
 </div>
 <div class="divider"></div>
@@ -4501,7 +4576,8 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
       <li>Меню → <b>🔁 Перезапустить интернет</b> (~10 сек)</li>
       <li>Не помогло → «Настройки интернета» → <b>↺ Перезагрузить роутер</b> (~40 сек)</li>
       <li>Всё ещё нет → выньте питание на 10 сек</li>
-      <li>IP есть, но сайтов нет → проверьте тип подключения (для PPPoE логин/пароль)</li>
+      <li><b>IP есть, но сайтов нет</b> → IP-адрес виден в панели (раздел «Диагностика»). Проверьте тип подключения (для PPPoE — логин/пароль). Доступность сайтов (YouTube, Telegram и др.) показывает строка индикаторов в «Расширенных настройках»</li>
+      <li>IP не выдаётся вовсе → возможна <a href="http://atlanta.lan/instruction.html#mac" style="color:var(--acc)">привязка по MAC</a></li>
       <li>Ничего не помогло — <a href="#support" style="color:var(--acc)">поддержка</a></li>
     </ol>
     <div class="info-box"><div>ℹ️</div><div><b>Перезапустить интернет</b> — быстрое переподключение к провайдеру. <b>Перезагрузить роутер</b> — полный ребут железа.</div></div>
@@ -4535,7 +4611,6 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
 <div class="section" id="guest">
   <div class="section-title">🏠 <span>Гостевая сеть и родительский контроль</span></div>
   <div class="card">
-    <h3>ℹ️ Это один раздел в «Расширенных настройках»</h3>
     <p>Гостевая сеть <b>Atlanta-Guest</b> работает без VPN (прямой интернет) и изолирована от домашних устройств. Родительский контроль действует <b>только на гостевую сеть</b>.</p>
   </div>
   <div class="card">
@@ -4550,7 +4625,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
     <ul>
       <li><b>🛡 Безопасный DNS</b> — галка Yandex.DNS Family (блок 18+, казино)</li>
       <li><b>⏰ Расписание</b> — галка «Отключать по времени»</li>
-      <li><b>Блокировать сайты</b> — домены через запятую</li>
+      <li><b>Блокировать сайты</b> — домены через запятую, например: tiktok.com, instagram.com</li>
     </ul>
     <div class="warn-box"><div>⚠️</div><div>Подключите устройство ребёнка к Atlanta-Guest и нажмите 💾 Сохранить. На основную сеть блокировки не действуют.</div></div>
   </div>
@@ -4578,9 +4653,9 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
       <li>Расширенные настройки → <b>«🔐 Доступ к панели управления»</b></li>
       <li>Новый логин — латиница и цифры, минимум 5 символов</li>
       <li>Новый пароль — латиница и цифры, минимум 8 символов</li>
-      <li><b>💾 Сохранить доступ</b> — перекинет на вход с новыми данными</li>
+      <li><b>💾 Сохранить доступ</b> — откроется окно для входа с новыми учётными данными, созданными на предыдущем шаге</li>
     </ol>
-    <div class="warn-box"><div>⚠️</div><div>Только латинские буквы и цифры — иначе панель не примет.</div></div>
+    <div class="warn-box"><div>⚠️</div><div>Только латинские буквы и цифры — иначе панель не сохранит.</div></div>
   </div>
 </div>
 <div class="divider"></div>
@@ -4591,7 +4666,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
     <h3>🔴 YouTube / Telegram не работает</h3>
     <ol class="steps">
       <li>Проверьте, что VPN включён (зелёный)</li>
-<li><b>🏓 URL Test</b> → выберите сервер с зелёным пингом → Применить</li>
+      <li><b>🏓 URL Test</b> → выберите сервер с зелёным пингом → Применить</li>
       <li>Не помогло — меню → <b>🔄 Обновить подписку</b>, подождите 1–2 минуты</li>
     </ol>
   </div>
@@ -4601,6 +4676,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
       <li>Кабель провайдера должен быть в порту <b>WAN</b></li>
       <li>Меню → <b>🔁 Перезапустить интернет</b>, подождите 20 сек — должен появиться IP</li>
       <li>Нет IP → проверьте тип подключения (для PPPoE — логин/пароль)</li>
+      <li>IP так и не появился → возможна <a href="http://atlanta.lan/instruction.html#mac" style="color:var(--acc)">привязка по MAC-адресу</a></li>
       <li>Не помогло — <b>↺ Перезагрузить роутер</b> или короткое нажатие Reset</li>
     </ol>
   </div>
@@ -4660,8 +4736,18 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
   <details class="faq"><summary>Можно подключить телевизор без VPN?</summary><div class="faq-body">Да — подключите его к <b>гостевой сети Atlanta-Guest</b>, она работает напрямую, без VPN.</div></details>
   <details class="faq"><summary>Что делает «Обновить роутер»?</summary><div class="faq-body">Обновляет панель управления. Ваши настройки (Wi-Fi, пароль, VPN, подписка) <b>не затрагиваются</b>.</div></details>
   <details class="faq"><summary>Почему интернет медленнее через VPN?</summary><div class="faq-body">Трафик идёт через сервер — добавляется задержка. Выберите сервер с низким зелёным пингом и обновите подписку.</div></details>
+  <details class="faq"><summary>После подключения кабеля нет
+интернета — почему?</summary><div class="faq-body">Возможна <b>привязка
+по MAC-адресу</b> у провайдера. См. раздел
+<a href="http://atlanta.lan/instruction.html#mac" style="color:var(--acc)">«Интернет
+не появляется после подключения кабеля»</a>: нужно перепривязать
+подключение через поддержку провайдера либо подключить роутер через
+прежнее оборудование.</div></details>
   <details class="faq"><summary>Где найти MAC-адрес?</summary><div class="faq-body">В шапке панели (кнопка 📋) или на странице <a href="http://atlanta.lan/my-mac/" style="color:var(--acc)">atlanta.lan/my-mac/</a>. Нужен для поддержки.</div></details>
-  <details class="faq"><summary>Почему после смены Wi-Fi всё отключилось?</summary><div class="faq-body">Это нормально: устройства больше не знают новые имя/пароль. Подключите их заново.</div></details>
+  <details class="faq"><summary>Почему после смены названия сети или
+пароля Wi-Fi всё отключилось?</summary><div class="faq-body">Это
+нормально: при смене названия сети или пароля устройства больше не знают
+новые данные. Подключите их к сети заново.</div></details>
 </div>
 <div class="divider"></div>
 
@@ -4687,7 +4773,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
   <div class="card" style="text-align:center">
     <p>Не смогли решить? Напишите нам и укажите <b>MAC-адрес</b> роутера.</p>
     <a class="support-btn primary" href="https://t.me/AtlantaVPNSUPPORT_bot" target="_blank" rel="noopener">🎧 Написать в поддержку</a>
-    <a class="support-btn secondary" href="https://atlanta-vps.com/dashboard" target="_blank" rel="noopener">💎 Подписка</a>
+    <a class="support-btn secondary" href="https://t.me/AtlantaRouters_bot" target="_blank" rel="noopener">💎 Подписка</a>
     <div class="info-box" style="margin-top:14px;text-align:left"><div>🔍</div><div>MAC-адрес: <a href="http://atlanta.lan/my-mac/" style="color:var(--acc)">atlanta.lan/my-mac/</a></div></div>
   </div>
 </div>
