@@ -41,7 +41,6 @@ config atl_panel 'main'
   option pass 'admin'
   option upd_version_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/version.txt'
   option upd_script_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/update.sh'
-  option youtube_mode 'main'
 UCI
 ok "UCI-конфиг готов"
 
@@ -72,7 +71,6 @@ config atl_panel 'main'
   option pass 'admin'
   option upd_version_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/version.txt'
   option upd_script_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/update.sh'
-  option youtube_mode 'main'
 UCI
 
 # Конфиг хранится в /etc/config/atl_panel
@@ -332,85 +330,9 @@ pw_apply_node(){
   } </dev/null >/dev/null 2>&1 &
 }
 
-get_direct_file(){
-  for f in \
-    /usr/share/passwall/rules/direct_host \
-    /etc/passwall/direct_host \
-    /usr/share/passwall/rules/direct_host_v2 \
-    /tmp/dnsmasq.d/direct_host
-  do
-    [ -f "$f" ] && { echo "$f"; return 0; }
-  done
-  mkdir -p /usr/share/passwall/rules 2>/dev/null || true
-  touch /usr/share/passwall/rules/direct_host 2>/dev/null || true
-  echo /usr/share/passwall/rules/direct_host
-}
-
-yt_domains(){
-  cat <<DOMAINS
-youtube.com
-www.youtube.com
-m.youtube.com
-youtu.be
-youtubei.googleapis.com
-youtube.googleapis.com
-googlevideo.com
-ytimg.com
-youtube-nocookie.com
-yt3.ggpht.com
-i.ytimg.com
-DOMAINS
-}
-
-direct_add_youtube(){
-  f="$(get_direct_file)"
-  tmp="/tmp/atl_direct_youtube.$$"
-  touch "$f"
-  cp "$f" "$tmp" 2>/dev/null || true
-  yt_domains | while IFS= read -r d; do
-    [ -n "$d" ] || continue
-    grep -qxF "$d" "$tmp" 2>/dev/null || echo "$d" >> "$tmp"
-  done
-  awk 'NF && !seen[$0]++' "$tmp" > "$f"
-  rm -f "$tmp"
-}
-
-direct_remove_youtube(){
-  f="$(get_direct_file)"
-  tmp="/tmp/atl_direct_youtube.$$"
-  touch "$f"
-  cp "$f" "$tmp" 2>/dev/null || true
-  grep -vxF -f /dev/stdin "$tmp" > "$f" <<DOMAINS
-youtube.com
-www.youtube.com
-m.youtube.com
-youtu.be
-youtubei.googleapis.com
-youtube.googleapis.com
-googlevideo.com
-ytimg.com
-youtube-nocookie.com
-yt3.ggpht.com
-i.ytimg.com
-DOMAINS
-  rm -f "$tmp"
-}
-
-
 bypass_state(){
-  [ -x /etc/init.d/passwall ] && /etc/init.d/passwall enabled >/dev/null 2>&1 && echo "on" || echo "off"
-}
-
-passwall_reload_soft(){
-  [ -x /etc/init.d/passwall ] && /etc/init.d/passwall reload >/dev/null 2>&1 || true
-  [ -x /etc/init.d/dnsmasq ] && /etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
-}
-
-main_mode_start(){
-  direct_add_youtube
-  setcfg youtube_mode main; commitcfg; passwall_reload_soft
-  sleep 2
-  conntrack -F 2>/dev/null || echo > /proc/net/nf_conntrack 2>/dev/null || true
+  # Единый источник правды — тот же флаг, что проверяют watchdog-скрипты
+  [ "$(uci -q get passwall.@global[0].enabled 2>/dev/null)" = "1" ] && echo "on" || echo "off"
 }
 
 # VPN watchdog — крон каждые 10 минут. on=добавить, off=убрать
@@ -421,6 +343,9 @@ vpn_watchdog_cron(){
   grep -v "vpn_watchdog.sh" "$CRON_F" > /tmp/atl_wd_cron.$$ 2>/dev/null || true
   if [ "$1" = "on" ]; then
     echo "*/10 * * * * /usr/bin/vpn_watchdog.sh" >> /tmp/atl_wd_cron.$$
+  else
+    # Добиваем уже запущенный watchdog, иначе он включит VPN обратно
+    pkill -f /usr/bin/vpn_watchdog.sh 2>/dev/null || true
   fi
   mv /tmp/atl_wd_cron.$$ "$CRON_F" 2>/dev/null || rm -f /tmp/atl_wd_cron.$$ 2>/dev/null || true
   /etc/init.d/cron restart >/dev/null 2>&1 || true
@@ -428,6 +353,9 @@ vpn_watchdog_cron(){
 
 bypass_enable_all(){
   vpn_watchdog_cron on
+  # Главный флаг passwall — его проверяют watchdog-скрипты
+  uci -q set passwall.@global[0].enabled='1' 2>/dev/null || true
+  uci -q commit passwall 2>/dev/null || true
   {
     [ -x /etc/init.d/passwall ] && {
       /etc/init.d/passwall enable >/dev/null 2>&1 || true
@@ -446,6 +374,9 @@ bypass_enable_all(){
 
 bypass_disable_all(){
   vpn_watchdog_cron off
+  # Снимаем главный флаг passwall — иначе watchdog поднимет VPN обратно
+  uci -q set passwall.@global[0].enabled='0' 2>/dev/null || true
+  uci -q commit passwall 2>/dev/null || true
   {
     [ -x /etc/init.d/passwall ] && {
       /etc/init.d/passwall stop >/dev/null 2>&1 || true
@@ -574,7 +505,7 @@ guest_enable(){
     ip route add 192.168.15.0/24 dev br-guest 2>/dev/null || true
   fi
 
-  # ── Исключаем гостевую сеть из Passwall и Zapret ───────────
+  # ── Исключаем гостевую сеть из Passwall ───────────
   sleep 2
   _apply_guest_bypass
   _install_guest_hotplug
@@ -1821,10 +1752,6 @@ REBOOTPAGE
     /etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
     redir "Родительский контроль отключён." "" ""
     ;;
-  yt_mode_apply)
-    main_mode_start
-    redir "Режим YouTube сохранён." "" ""
-    ;;
 esac
 
 # ─── Данные для страницы ────────────────────────────────────────
@@ -1867,7 +1794,6 @@ CUR_5_KEY="$(uci -q get wireless.default_radio1.key 2>/dev/null || echo "")"
 
 CUR_USER_CFG="$(getcfg user)"; CUR_PASS_CFG="$(getcfg pass)"
 SETUP_DONE="$(getcfg setup_done)"; [ -z "${SETUP_DONE:-}" ] && SETUP_DONE="0"
-CUR_YT_MODE="main"
 
 DEFAULT_WARN="0"
 [ "$CUR_USER_CFG" = "admin" ] && [ "$CUR_PASS_CFG" = "admin" ] && DEFAULT_WARN="1"
@@ -1900,8 +1826,6 @@ case "$CUR_WAN" in
   static) SEL_STATIC="selected" ;;
   *) SEL_DHCP="selected" ;;
 esac
-
-YT_MAIN_SEL="selected"; YT_MODE_LABEL="Основной"
 
 case "$(bypass_state)" in
   on)
@@ -4234,7 +4158,6 @@ EOF
 sh /tmp/install_atlanta_panel_v2.sh
 
 
-sh /tmp/install_atlanta_panel_v2.sh
 cat <<'EOF' > /tmp/install_atlanta_instruction.sh
 #!/bin/sh
 set -eu
