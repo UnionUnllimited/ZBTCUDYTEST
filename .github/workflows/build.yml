@@ -258,7 +258,7 @@ jobs:
           BASE_PACKAGES="\
           luci luci-ssl luci-compat luci-lib-nixio luci-lua-runtime \
           luci-app-firewall luci-app-package-manager luci-app-attendedsysupgrade \
-          xray-core sing-box hysteria2 microsocks \
+          xray-core sing-box microsocks \
           -dnsmasq dnsmasq-full \
           curl gzip unzip ip-full openssl-util \
           coreutils-base64 coreutils-nohup coreutils-sleep coreutils-sort coreutils-od \
