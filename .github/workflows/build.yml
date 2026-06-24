@@ -110,31 +110,8 @@ jobs:
           ls -lh files/usr/bin/xray
           echo "Xray downloaded OK"
 
-      - name: Download latest sing-box binary
-        run: |
-          SINGBOX_VERSION=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
-          echo "sing-box latest: $SINGBOX_VERSION"
-          curl -L "https://github.com/SagerNet/sing-box/releases/download/v${SINGBOX_VERSION}/sing-box-${SINGBOX_VERSION}-linux-arm64.tar.gz" \
-            -o /tmp/singbox.tar.gz
-          mkdir -p files/usr/bin
-          tar xzf /tmp/singbox.tar.gz --strip-components=1 \
-            -C files/usr/bin/ \
-            "sing-box-${SINGBOX_VERSION}-linux-arm64/sing-box"
-          chmod +x files/usr/bin/sing-box
-          ls -lh files/usr/bin/sing-box
-          echo "sing-box downloaded OK"
-
-      - name: Download latest Hysteria2 binary
-        run: |
-          HY2_VERSION=$(curl -s "https://api.github.com/repos/apernet/hysteria/releases/latest" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].replace('app/v',''))")
-          echo "Hysteria2 latest: $HY2_VERSION"
-          curl -L "https://github.com/apernet/hysteria/releases/download/app%2Fv${HY2_VERSION}/hysteria-linux-arm64" \
-            -o files/usr/bin/hysteria
-          chmod +x files/usr/bin/hysteria
-          ls -lh files/usr/bin/hysteria
-          echo "Hysteria2 downloaded OK"
+      # sing-box и hysteria2 берутся из OpenWrt APK feeds — они musl-совместимы
+      # GitHub releases собраны с glibc и не работают на OpenWrt
 
       - name: Extract offline packages into files/
         run: |
@@ -258,7 +235,7 @@ jobs:
           BASE_PACKAGES="\
           luci luci-ssl luci-compat luci-lib-nixio luci-lua-runtime \
           luci-app-firewall luci-app-package-manager luci-app-attendedsysupgrade \
-          xray-core sing-box microsocks \
+          -xray-core sing-box microsocks \
           -dnsmasq dnsmasq-full \
           curl gzip unzip ip-full openssl-util \
           coreutils-base64 coreutils-nohup coreutils-sleep coreutils-sort coreutils-od \
