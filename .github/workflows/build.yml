@@ -103,12 +103,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/XTLS/Xray-core/releases" \
-            | python3 -c "
-import sys, json
-releases = json.load(sys.stdin)
-latest = next(r for r in releases if not r['prerelease'] and not r['draft'])
-print(latest['tag_name'].lstrip('v'))
-")
+            | python3 -c "import sys,json;releases=json.load(sys.stdin);latest=next(r for r in releases if not r['prerelease'] and not r['draft']);print(latest['tag_name'].lstrip('v'))")
           echo "Xray latest: $XRAY_VERSION"
           curl -L "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-arm64-v8a.zip" \
             -o /tmp/xray.zip
