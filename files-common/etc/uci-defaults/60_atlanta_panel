@@ -1,9 +1,9 @@
-cat <<'EOF' > /tmp/install_atlanta_panel_v2.sh
+cat <<'EOF' > /tmp/install_titan_panel_v2.sh
 #!/bin/sh
 set -eu
 
 # ════════════════════════════════════════════════════════════════
-#  Atlanta Router — Installer v2
+#  Titan Router — Installer v2
 #  Первичная установка: WiFi, LAN, пароль, панель
 # ════════════════════════════════════════════════════════════════
 
@@ -15,7 +15,7 @@ info(){ printf "  ${CY}ℹ  %s${C0}\n" "$*"; }
 
 printf '\n'
 printf "${CB}╔══════════════════════════════════════════╗${C0}\n"
-printf "${CB}║      🚀  Atlanta Router — Installer v2    ║${C0}\n"
+printf "${CB}║      🚀  Titan Router — Installer v2      ║${C0}\n"
 printf "${CB}╚══════════════════════════════════════════╝${C0}\n\n"
 
 CGI_DIR="/www/cgi-bin"
@@ -23,8 +23,8 @@ PANEL="$CGI_DIR/panel"
 CONF="/etc/config/atl_panel"
 LAN_IP="192.168.14.1"
 LAN_MASK="255.255.255.0"
-WIFI_SSID_24="Atlanta-2.4"
-WIFI_SSID_5="Atlanta-5"
+WIFI_SSID_24="Titan-2.4"
+WIFI_SSID_5="Titan-5"
 # При первой прошивке Wi-Fi открытый (без пароля) — клиент задаёт пароль в мастере
 
 # ── [1/8] Директории ────────────────────────────────────────────
@@ -52,8 +52,8 @@ cat >"$PANEL" <<'PANELFILE'
 #!/bin/sh
 set -eu
 
-LINK_SUB="https://atlanta-vps.com/dashboard"
-LINK_SUPPORT='https://t.me/AtlantaVPNSUPPORT_bot'
+LINK_SUB="https://titan-vps.ru/dashboard"
+LINK_SUPPORT='https://t.me/TitanVPSHelp_bot'
 
 CONF="/etc/config/atl_panel"
 LOG="/tmp/atl_panel_passwall_update.log"
@@ -287,10 +287,10 @@ pw_node_label(){
   [ -n "$label" ] || label="$(uci -q get passwall."$node".address 2>/dev/null || true)"
   [ -n "$label" ] || label="$node"
   case "$label" in
-    AtlantaSwitch|ATLANTASWITCH|atlantaswitch) label="Авто (балансер)" ;;
+    TitanSwitch|TITANSWITCH|titanswitch) label="Авто (балансер)" ;;
   esac
   case "$node" in
-    *AtlantaSwitch*|*ATLANTASWITCH*|*atlantaswitch*) label="Авто (балансер)" ;;
+    *TitanSwitch*|*TITANSWITCH*|*titanswitch*) label="Авто (балансер)" ;;
   esac
   normalize_server_label "$label"
 }
@@ -408,7 +408,7 @@ guest_state(){
 }
 
 guest_enable(){
-  GSSID="${1:-Atlanta-Guest}"
+  GSSID="${1:-Titan-Guest}"
   GKEY="${2:-}"
 
   # ── Сеть ───────────────────────────────────────────────────
@@ -932,7 +932,7 @@ if [ "$need_auth" = "1" ]; then
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Atlanta Router — Вход</title>
+<title>Titan Router — Вход</title>
 <style>
 /* ── Переменные ── */
 :root{
@@ -1098,7 +1098,7 @@ input::placeholder{color:var(--dim)}
 <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">Тёмная</button>
 <div class="login-wrap">
   <div class="logo-area">
-    <div class="logo">Atlanta Router</div>
+    <div class="logo">Titan Router</div>
     <div class="logo-sub">Панель управления роутером</div>
     ${ES_LOGIN_MODEL:+<div class="logo-model"><span class="logo-model-dot"></span>${ES_LOGIN_MODEL}</div>}
   </div>
@@ -1339,7 +1339,7 @@ case "${FORM_action:-}" in
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Перезагрузка — Atlanta Router</title>
+<title>Перезагрузка — Titan Router</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -1515,18 +1515,18 @@ REBOOTPAGE
     ss24_chk="$(printf "%s" "$ss24_raw" | trim_spaces)"
     [ -z "$ss24_chk" ] && redir "" "SSID 2.4 ГГц не может быть пустым." ""
     is_ascii "$ss24_raw" || redir "" "SSID: только латиница (пробелы разрешены)." ""
-    # Принудительно добавляем префикс Atlanta- если его нет
+    # Принудительно добавляем префикс Titan- если его нет
     case "$ss24_raw" in
-      Atlanta-*|atlanta-*) : ;;
-      *) ss24_raw="Atlanta-${ss24_raw}" ;;
+      Titan-*|titan-*) : ;;
+      *) ss24_raw="Titan-${ss24_raw}" ;;
     esac
     ss5_raw="$(printf "%s" "${FORM_ssid_5:-}" | strip_newlines)"
     ss5_chk="$(printf "%s" "$ss5_raw" | trim_spaces)"
     if [ -n "$ss5_chk" ]; then
       is_ascii "$ss5_raw" || redir "" "SSID: только латиница (пробелы разрешены)." ""
       case "$ss5_raw" in
-        Atlanta-*|atlanta-*) : ;;
-        *) ss5_raw="Atlanta-${ss5_raw}" ;;
+        Titan-*|titan-*) : ;;
+        *) ss5_raw="Titan-${ss5_raw}" ;;
       esac
     fi
     k24="$(printf "%s" "${FORM_key_24:-}" | strip_newlines)"
@@ -1570,7 +1570,7 @@ REBOOTPAGE
     ss24_chk="$(printf "%s" "$ss24_raw" | trim_spaces)"
     if [ -n "$ss24_chk" ]; then
       is_ascii "$ss24_raw" || redir "" "SSID: только латиница, цифры, пробелы." ""
-      case "$ss24_raw" in Atlanta-*|atlanta-*) : ;; *) ss24_raw="Atlanta-${ss24_raw}" ;; esac
+      case "$ss24_raw" in Titan-*|titan-*) : ;; *) ss24_raw="Titan-${ss24_raw}" ;; esac
       k24="$(printf "%s" "${FORM_key_24:-}" | strip_newlines)"
       if [ -n "$k24" ]; then
         len_ge_8 "$k24" || redir "" "Пароль WiFi: минимум 8 символов." ""
@@ -1591,7 +1591,7 @@ REBOOTPAGE
       k5="$(printf "%s" "${FORM_key_5:-}" | strip_newlines)"
       if [ -n "$ss5_chk" ] && uci -q get wireless.radio1.type >/dev/null 2>&1; then
         is_ascii "$ss5_raw" || true
-        case "$ss5_raw" in Atlanta-*|atlanta-*) : ;; *) ss5_raw="Atlanta-${ss5_raw}" ;; esac
+        case "$ss5_raw" in Titan-*|titan-*) : ;; *) ss5_raw="Titan-${ss5_raw}" ;; esac
         uci -q set wireless.default_radio1.ssid="$ss5_raw" 2>/dev/null || true
         if [ -n "$k5" ]; then
           uci -q set wireless.default_radio1.encryption="psk2" 2>/dev/null || true
@@ -1667,7 +1667,7 @@ REBOOTPAGE
     fi
     setcfg setup_done "1"
     commitcfg
-    redir "Настройка завершена! Добро пожаловать в Atlanta Router." "" ""
+    redir "Настройка завершена! Добро пожаловать в Titan Router." "" ""
     ;;
   passwall_update)
     pw_exists || redir "" "VPN не настроен." ""
@@ -1707,9 +1707,9 @@ REBOOTPAGE
     exit 0
     ;;
   guest_enable)
-    gssid="$(printf "%s" "${FORM_ssid_guest:-Atlanta-Guest}" | strip_newlines | trim_spaces)"
+    gssid="$(printf "%s" "${FORM_ssid_guest:-Titan-Guest}" | strip_newlines | trim_spaces)"
     gkey="$(printf "%s" "${FORM_key_guest:-}" | strip_newlines)"
-    [ -z "$gssid" ] && gssid="Atlanta-Guest"
+    [ -z "$gssid" ] && gssid="Titan-Guest"
     if [ -n "$gkey" ]; then
       len_ge_8 "$gkey" || redir "" "Пароль гостевой сети: минимум 8 символов." ""
       is_ascii_nospace "$gkey" || redir "" "Пароль гостевой сети: только латиница, без пробелов." ""
@@ -1787,9 +1787,9 @@ WAN_DOT_CLASS="bad"; [ "$WAN_HAS_IP" = "1" ] && WAN_DOT_CLASS="ok"
 SYS_WAN_IP_SHOW="${SYS_WAN_IP:-Нет IP}"
 SYS_WAN_GW_SHOW="${SYS_WAN_GW:-—}"
 
-CUR_24_SSID="$(uci -q get wireless.default_radio0.ssid 2>/dev/null || echo "Atlanta-2.4")"
+CUR_24_SSID="$(uci -q get wireless.default_radio0.ssid 2>/dev/null || echo "Titan-2.4")"
 CUR_24_KEY="$(uci -q get wireless.default_radio0.key 2>/dev/null || echo "")"
-CUR_5_SSID="$(uci -q get wireless.default_radio1.ssid 2>/dev/null || echo "Atlanta-5")"
+CUR_5_SSID="$(uci -q get wireless.default_radio1.ssid 2>/dev/null || echo "Titan-5")"
 CUR_5_KEY="$(uci -q get wireless.default_radio1.key 2>/dev/null || echo "")"
 
 CUR_USER_CFG="$(getcfg user)"; CUR_PASS_CFG="$(getcfg pass)"
@@ -1813,7 +1813,7 @@ if [ "$SUB_UNPAID" = "1" ]; then
     <p style="margin:0 0 14px;color:#ffe2e2;line-height:1.55;font-size:13px">Доступ к VPN приостановлен. Чтобы продолжить пользоваться сервисом, оплатите подписку на сайте или через Telegram-бота.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <span style="flex:1;min-width:150px;text-align:center;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.55);color:#8a1515;font-weight:800;cursor:not-allowed;opacity:.85">💳 Оплатить на сайте — временно недоступно</span>
-      <a href="https://t.me/AtlantaRouters_bot" target="_blank" rel="noopener" style="flex:1;min-width:150px;text-align:center;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.45);color:#fff;font-weight:800;text-decoration:none">🤖 Оплатить в боте</a>
+      <a href="https://t.me/TitanVPSHelp_bot" target="_blank" rel="noopener" style="flex:1;min-width:150px;text-align:center;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.45);color:#fff;font-weight:800;text-decoration:none">🤖 Оплатить в боте</a>
     </div>
   </div>'
 fi
@@ -1852,14 +1852,14 @@ case "$GUEST_STATE" in
     GUEST_LABEL="Включена"
     GUEST_BTN="Отключить"
     GUEST_DOT="ok"
-    GUEST_SSID="$(uci -q get wireless.guest_radio0.ssid 2>/dev/null || echo "Atlanta-Guest")"
+    GUEST_SSID="$(uci -q get wireless.guest_radio0.ssid 2>/dev/null || echo "Titan-Guest")"
     GUEST_KEY="$(uci -q get wireless.guest_radio0.key 2>/dev/null || echo "")"
     ;;
   *)
     GUEST_LABEL="Выключена"
     GUEST_BTN="Включить"
     GUEST_DOT="bad"
-    GUEST_SSID="Atlanta-Guest"
+    GUEST_SSID="Titan-Guest"
     GUEST_KEY=""
     ;;
 esac
@@ -1893,8 +1893,8 @@ if pw_exists; then
     echo "$PW_TMP" | while IFS="$(printf '\t')" read -r sec rem; do
       [ -n "${sec:-}" ] || continue; [ -n "${rem:-}" ] || rem="$sec"
       label="$rem"
-      case "$label" in AtlantaSwitch|ATLANTASWITCH|atlantaswitch) label="Авто (балансер)" ;; esac
-      case "$sec" in *AtlantaSwitch*|*ATLANTASWITCH*|*atlantaswitch*) label="Авто (балансер)" ;; esac
+      case "$label" in TitanSwitch|TITANSWITCH|titanswitch) label="Авто (балансер)" ;; esac
+      case "$sec" in *TitanSwitch*|*TITANSWITCH*|*titanswitch*) label="Авто (балансер)" ;; esac
       label="$(normalize_server_label "$label")"
       ES_SEC="$(printf '%s' "$sec" | html_escape)"; ES_REM="$(printf '%s' "$label" | html_escape)"
       if [ "$PW_CURRENT" = "$sec" ]; then
@@ -1944,7 +1944,7 @@ cat <<HTML
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Atlanta Router</title>
+<title>Titan Router</title>
 <style>
 /* ══ Variables ════════════════════════════════════════════════ */
 :root{
@@ -2166,7 +2166,7 @@ input::placeholder{color:var(--dim)}
   .card{padding:12px}
 }
 /* ══════════════════════════════════════════════════════
-   СВЕТЛАЯ ТЕМА — стиль Atlanta VPS
+   СВЕТЛАЯ ТЕМА — стиль Titan VPS
    ══════════════════════════════════════════════════════ */
 [data-theme="light"]{
   --bg:#eef2f9;
@@ -2300,7 +2300,7 @@ input::placeholder{color:var(--dim)}
 [data-theme="light"] .nav-home-btn:hover{background:#dbeafe !important}
 [data-theme="light"] .nav-theme-btn{color:#64748b !important}
 
-/* ── Заголовок Atlanta Router ── */
+/* ── Заголовок Titan Router ── */
 [data-theme="light"] #atlTitle{
   background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 50%,#7c3aed 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
@@ -2391,7 +2391,7 @@ input::placeholder{color:var(--dim)}
     <!-- Шаг 0: Добро пожаловать -->
     <div class="wiz-step active" id="wiz0">
       <div class="wiz-icon">🚀</div>
-      <div class="wiz-title">Добро пожаловать в Atlanta Router!</div>
+      <div class="wiz-title">Добро пожаловать в Titan Router!</div>
       <div class="wiz-desc">Настроим роутер за 3 шага:<br>📶 WiFi → 🌐 Интернет → 🔐 Пароль</div>
       <div class="wiz-actions">
         <button class="btn primary" type="button" onclick="wizNext()">Начать настройку →</button>
@@ -2404,7 +2404,7 @@ input::placeholder{color:var(--dim)}
     <div class="wiz-step" id="wiz1">
       <div class="wiz-icon">📶</div>
       <div class="wiz-title">Настройка WiFi</div>
-      <div class="wiz-desc">Префикс <b>Atlanta-</b> добавится автоматически.<br>Пароль один для обеих сетей.</div>
+      <div class="wiz-desc">Префикс <b>Titan-</b> добавится автоматически.<br>Пароль один для обеих сетей.</div>
       <div class="wiz-band-tabs">
         <button type="button" class="wiz-band active" id="wizBand24Btn" onclick="wizBandSwitch('24')">2.4 ГГц</button>
         <button type="button" class="wiz-band" id="wizBand5Btn" onclick="wizBandSwitch('5')">5 ГГц</button>
@@ -2414,7 +2414,7 @@ input::placeholder{color:var(--dim)}
         <div class="wiz-field">
           <label>Имя сети 2.4 ГГц (SSID)</label>
           <div style="display:flex;align-items:center;gap:0">
-            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Atlanta-</span>
+            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
             <input class="inp" id="wizSsid" type="text" placeholder="MyHome" autocomplete="off" spellcheck="false" style="border-radius:0 8px 8px 0;flex:1;margin:0">
           </div>
         </div>
@@ -2431,7 +2431,7 @@ input::placeholder{color:var(--dim)}
         <div class="wiz-field">
           <label>Имя сети 5 ГГц (SSID)</label>
           <div style="display:flex;align-items:center;gap:0">
-            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Atlanta-</span>
+            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
             <input class="inp" id="wizSsid5" type="text" placeholder="MyHome-5G" autocomplete="off" spellcheck="false" style="border-radius:0 8px 8px 0;flex:1;margin:0">
           </div>
         </div>
@@ -2548,7 +2548,7 @@ input::placeholder{color:var(--dim)}
 </div>
 
 <div style="width:100%;text-align:center;padding:20px 0 4px;background:var(--bg)">
-  <div id="atlTitle" style="font-size:32px;font-weight:800;letter-spacing:-1.5px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1">Atlanta Router</div>
+  <div id="atlTitle" style="font-size:32px;font-weight:800;letter-spacing:-1.5px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1">Titan Router</div>
 </div>
 <div class="wrap">
   <div class="header">
@@ -2575,7 +2575,7 @@ input::placeholder{color:var(--dim)}
   <!-- ── Навигация — боковая панель ── -->
   <nav class="nav" id="mainNav" role="navigation" aria-label="Главное меню">
     <div class="nav-header">
-      <span class="nav-header-title">Atlanta Router</span>
+      <span class="nav-header-title">Titan Router</span>
       <button class="nav-close" type="button" onclick="menuClose()" aria-label="Закрыть">✕</button>
     </div>
     <div class="nav-items">
@@ -2700,7 +2700,7 @@ input::placeholder{color:var(--dim)}
             <div class="card-title">🏠 Настройки Wi-Fi</div>
             <label>Название сети 2.4 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
-              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Atlanta-</span>
+              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
               <input id="ssid_24_suffix" style="border-radius:0 var(--rs) var(--rs) 0" placeholder="Название (напр: Home)" oninput="updateSsid24()">
               <input id="ssid_24" type="hidden" value="${ES_24_SSID}">
             </div>
@@ -2711,7 +2711,7 @@ input::placeholder{color:var(--dim)}
             </div>
             <label>Название сети 5 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
-              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Atlanta-</span>
+              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
               <input id="ssid_5_suffix" style="border-radius:0 var(--rs) var(--rs) 0" placeholder="Название (напр: Home_5G)" oninput="updateSsid5()">
               <input id="ssid_5" type="hidden" value="${ES_5_SSID}">
             </div>
@@ -2853,7 +2853,7 @@ input::placeholder{color:var(--dim)}
                     </div>
                     <div class="info-hint">ℹ️ Работает без VPN — прямой интернет. Для детей и гостей.</div>
                     <label>Название гостевой сети</label>
-                    <input id="ssid_guest" value="${ES_GUEST_SSID}" placeholder="Atlanta-Guest">
+                    <input id="ssid_guest" value="${ES_GUEST_SSID}" placeholder="Titan-Guest">
                     <label>Пароль (мин. 8 символов, или пусто — открытая)</label>
                     <div class="pw-wrap">
                       <input id="key_guest" type="password" value="${ES_GUEST_KEY}" placeholder="Без пароля — открытая сеть">
@@ -3055,7 +3055,7 @@ function saveWifi(){
   if(!suf24){ showFldErr('ssid_24_suffix','Название сети не может быть пустым'); return; }
   if(hasCyrillic(suf24)){ showFldErr('ssid_24_suffix','Кириллица не поддерживается в названии Wi-Fi. Используйте латинские буквы (A–Z), цифры и символы'); return; }
   if(!isAscii(suf24)){ showFldErr('ssid_24_suffix','Только латиница, цифры и символы (!, _, -, и т.д.). Кириллица и спецсимволы запрещены'); return; }
-  if(suf24.length > 28){ showFldErr('ssid_24_suffix','Максимум 28 символов (+ "Atlanta-" = 32 итого)'); return; }
+  if(suf24.length > 28){ showFldErr('ssid_24_suffix','Максимум 28 символов (+ "Titan-" = 32 итого)'); return; }
   var k24 = g('key_24') ? g('key_24').value : '';
   if(k24 && k24.length < 8){ showFldErr('key_24','Пароль: минимум 8 символов'); return; }
   if(k24 && hasCyrillic(k24)){ showFldErr('key_24','Пароль: кириллица не поддерживается, используйте латиницу'); return; }
@@ -3138,9 +3138,9 @@ function showLoading(action){
 }
 function saveGuest(){
   var se=g('ssid_guest'), ke=g('key_guest');
-  var ss=se?se.value.trim():'Atlanta-Guest';
+  var ss=se?se.value.trim():'Titan-Guest';
   var kk=ke?ke.value:'';
-  if(!ss) ss='Atlanta-Guest';
+  if(!ss) ss='Titan-Guest';
   if(kk && kk.length>0 && kk.length<8){
     alert('Пароль должен быть минимум 8 символов');
     return;
@@ -3208,7 +3208,7 @@ function menuToggle(){ _menuOpen ? menuClose() : menuOpen(); }
 function updateSsid24(){
   var sf=document.getElementById('ssid_24_suffix');
   var hid=document.getElementById('ssid_24');
-  if(sf&&hid) hid.value='Atlanta-'+sf.value;
+  if(sf&&hid) hid.value='Titan-'+sf.value;
   // Live-валидация
   if(sf&&sf.value){
     if(hasCyrillic(sf.value)){
@@ -3223,7 +3223,7 @@ function updateSsid24(){
 function updateSsid5(){
   var sf=document.getElementById('ssid_5_suffix');
   var hid=document.getElementById('ssid_5');
-  if(sf&&hid) hid.value='Atlanta-'+sf.value;
+  if(sf&&hid) hid.value='Titan-'+sf.value;
   if(sf&&sf.value){
     if(hasCyrillic(sf.value)){
       sf.style.borderColor='var(--bad)';
@@ -3235,8 +3235,8 @@ function updateSsid5(){
   }
 }
 function initSsidFields(){
-  // Инициализируем суффиксы: убираем "Atlanta-" или "Atlanta " в начале
-  var strip=function(v){return (v||'').replace(/^Atlanta[-\s]/i,'');};
+  // Инициализируем суффиксы: убираем "Titan-" или "Titan " в начале
+  var strip=function(v){return (v||'').replace(/^Titan[-\s]/i,'');};
   var v24=document.getElementById('ssid_24');
   var s24=document.getElementById('ssid_24_suffix');
   if(v24&&s24) s24.value=strip(v24.value);
@@ -3917,7 +3917,7 @@ cat > /www/index.html <<'ROOT'
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="0;url=/cgi-bin/panel">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Atlanta Router</title>
+<title>Titan Router</title>
 </head>
 <body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#05070d;color:#eaf3ff;font-family:system-ui">
   <div style="text-align:center">
@@ -3948,7 +3948,7 @@ cat << HTML
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Atlanta Router — MAC</title>
+<title>Titan Router — MAC</title>
 <style>
 :root{--acc:#0ab3ff;--acc2:#0070f0;--acc3:#0046c0;--ok:#27c97a}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -3976,7 +3976,7 @@ body{min-height:100vh;display:flex;flex-direction:column;align-items:center;just
 </style>
 </head>
 <body>
-<div class="logo">Atlanta Router</div>
+<div class="logo">Titan Router</div>
 <div class="logo-sub">Ваш роутер</div>
 <div class="card">
   <div class="label">MAC-адрес роутера</div>
@@ -3988,7 +3988,7 @@ body{min-height:100vh;display:flex;flex-direction:column;align-items:center;just
   <div class="divider"></div>
   <div class="links">
     <a class="link-btn primary" href="/cgi-bin/panel">🛡 Панель</a>
-    <a class="link-btn" href="https://t.me/AtlantaVPNSUPPORT_bot" target="_blank" rel="noopener">Поддержка</a>
+    <a class="link-btn" href="https://t.me/TitanVPSHelp_bot" target="_blank" rel="noopener">Поддержка</a>
   </div>
 </div>
 <script>
@@ -4045,22 +4045,22 @@ uci -q set network.lan.netmask="$LAN_MASK"
 uci -q commit network
 rm -f /www/cgi-bin/atl_netstatus 2>/dev/null || true
 
-# ── Добавляем atlanta.lan hostname ──────────────────────────────
+# ── Добавляем titan.lan hostname ──────────────────────────────
 # 1. /etc/hosts
-grep -qF "atlanta.lan" /etc/hosts 2>/dev/null || echo "$LAN_IP atlanta.lan" >> /etc/hosts
+grep -qF "titan.lan" /etc/hosts 2>/dev/null || echo "$LAN_IP titan.lan" >> /etc/hosts
 
 # 2. dnsmasq address record (работает даже если /etc/hosts не читается)
 DNSMASQ_CONF="/etc/dnsmasq.d/atlanta.conf"
 mkdir -p /etc/dnsmasq.d 2>/dev/null || true
-printf 'address=/atlanta.lan/%s\n' "$LAN_IP" > "$DNSMASQ_CONF"
+printf 'address=/titan.lan/%s\n' "$LAN_IP" > "$DNSMASQ_CONF"
 
 # 3. Разрешаем dnsmasq читать из /etc/dnsmasq.d/ и разрешаем rebind для LAN
 uci -q set dhcp.@dnsmasq[0].confdir='/etc/dnsmasq.d'
 uci -q commit dhcp 2>/dev/null || true
 
-# 4. Добавляем atlanta.lan в rebind-domain-ok (иначе dnsmasq блокирует LAN-IP ответы)
+# 4. Добавляем titan.lan в rebind-domain-ok (иначе dnsmasq блокирует LAN-IP ответы)
 uci -q delete dhcp.@dnsmasq[0].rebind_domain 2>/dev/null || true
-uci -q add_list dhcp.@dnsmasq[0].rebind_domain='atlanta.lan'
+uci -q add_list dhcp.@dnsmasq[0].rebind_domain='titan.lan'
 uci -q set dhcp.@dnsmasq[0].rebind_protection='1'
 uci -q commit dhcp 2>/dev/null || true
 ok "LAN IP: $LAN_IP"
@@ -4073,20 +4073,20 @@ info "uhttpd перезапущен"
 /etc/init.d/network reload >/dev/null 2>&1 || true
 info "Сеть перезагружена (reload, WAN не трогаем)"
 /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
-info "dnsmasq перезапущен (atlanta.lan активен)"
+info "dnsmasq перезапущен (titan.lan активен)"
 
 # ── [+] Кнопка Reset ──────────────────────────────────────────
 step "[+] Устанавливаем обработчик кнопки Reset"
 mkdir -p /etc/hotplug.d/button
 cat > /etc/hotplug.d/button/00-atlanta << 'HOTPLUG'
 #!/bin/sh
-# Atlanta Router — Reset Button
+# Titan Router — Reset Button
 # < 3 сек  → перезагрузка
-# >= 3 сек → сброс Wi-Fi на Atlanta-2.4/Atlanta-5 (без пароля) + панель admin/admin
+# >= 3 сек → сброс Wi-Fi на Titan-2.4/Titan-5 (без пароля) + панель admin/admin
 [ "$BUTTON" = "reset" ] || exit 0
 if [ "$ACTION" = "released" ]; then
   if [ "${SEEN:-0}" -ge 3 ]; then
-    logger -t atlanta "СБРОС: Wi-Fi + панель до заводских"
+    logger -t titan "СБРОС: Wi-Fi + панель до заводских"
     CFG="/etc/config/atl_panel"
     [ -f "$CFG" ] && sed -i "s|^[[:space:]]*option user .*|  option user 'admin'|" "$CFG"
     [ -f "$CFG" ] && sed -i "s|^[[:space:]]*option pass .*|  option pass 'admin'|" "$CFG"
@@ -4094,12 +4094,12 @@ if [ "$ACTION" = "released" ]; then
     uci -q set atl_panel.main.pass='admin' 2>/dev/null || true
     uci -q commit atl_panel 2>/dev/null || true
     rm -f /tmp/atl_panel_sid 2>/dev/null || true
-    uci -q set wireless.default_radio0.ssid='Atlanta-2.4'
+    uci -q set wireless.default_radio0.ssid='Titan-2.4'
     uci -q set wireless.default_radio0.encryption='none'
     uci -q delete wireless.default_radio0.key 2>/dev/null || true
     uci -q set wireless.default_radio0.disabled='0'
     uci -q get wireless.radio1.type >/dev/null 2>&1 && {
-      uci -q set wireless.default_radio1.ssid='Atlanta-5'
+      uci -q set wireless.default_radio1.ssid='Titan-5'
       uci -q set wireless.default_radio1.encryption='none'
       uci -q delete wireless.default_radio1.key 2>/dev/null || true
       uci -q set wireless.default_radio1.disabled='0'
@@ -4107,7 +4107,7 @@ if [ "$ACTION" = "released" ]; then
     uci -q commit wireless
     sleep 1; reboot
   else
-    logger -t atlanta "Перезагрузка по кнопке reset"
+    logger -t titan "Перезагрузка по кнопке reset"
     sleep 1; reboot
   fi
 fi
@@ -4135,7 +4135,7 @@ ok "Cron: обновление подписки в 04:00"
 # ── Финальный баннер ─────────────────────────────────────────
 printf '\n'
 printf "${CG}╔══════════════════════════════════════════╗${C0}\n"
-printf "${CG}║      ✅  ATLANTA PANEL УСТАНОВЛЕНА!      ║${C0}\n"
+printf "${CG}║       ✅  TITAN PANEL УСТАНОВЛЕНА!       ║${C0}\n"
 printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
 printf "${CG}║${C0}  Адрес панели:  ${CB}http://%s/${C0}%*s${CG}║${C0}\n" "$LAN_IP" "$((20 - ${#LAN_IP}))" ""
 printf "${CG}║${C0}  Логин:         ${CB}admin${C0}%*s${CG}║${C0}\n" 18 ""
@@ -4145,8 +4145,8 @@ printf "${CG}║${C0}  Wi-Fi 2.4 ГГц: ${CB}%s${C0}%*s${CG}║${C0}\n" "$WIFI_
 printf "${CG}║${C0}  Wi-Fi 5 ГГц:   ${CB}%s${C0}%*s${CG}║${C0}\n" "$WIFI_SSID_5" "$((26 - ${#WIFI_SSID_5}))" ""
 printf "${CG}║${C0}  Пароль Wi-Fi:  ${CB}без пароля${C0}%*s${CG}║${C0}\n" 15 ""
 printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
-printf "${CG}║${C0}  Адрес (hostname): ${CB}http://atlanta.lan/${C0}%*s${CG}║${C0}\n" 15 ""
-printf "${CG}║${C0}  MAC страница:      ${CB}http://atlanta.lan/my-mac/${C0}%*s${CG}║${C0}\n" 6 ""
+printf "${CG}║${C0}  Адрес (hostname): ${CB}http://titan.lan/${C0}%*s${CG}║${C0}\n" 15 ""
+printf "${CG}║${C0}  MAC страница:      ${CB}http://titan.lan/my-mac/${C0}%*s${CG}║${C0}\n" 6 ""
 printf "${CG}║${C0}  ${CY}⚠ Смените пароль панели после входа!${C0}   ${CG}║${C0}\n"
 printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
 printf "${CG}║${C0}  Кнопка Reset: < 3с → Перезагрузка      ${CG}║${C0}\n"
@@ -4155,7 +4155,7 @@ printf "${CG}╚═════════════════════�
 
 EOF
 
-sh /tmp/install_atlanta_panel_v2.sh
+sh /tmp/install_titan_panel_v2.sh
 
 
 exit 0

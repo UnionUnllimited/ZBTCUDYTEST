@@ -23,7 +23,7 @@ echo "$PASS" > /tmp/root_pass.txt
 mkdir -p /etc/frp
 cat > /etc/frp/frpc.ini << EOF
 [common]
-server_addr = origin.all-streams-24.ru
+server_addr = frp.pandora361.online
 server_port = 8443
 token = 21658aa79e70daf3a9e7ededa24855dcdf791a8606a4da6f8d7cb594513202d2
 

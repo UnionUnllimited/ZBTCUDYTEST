@@ -1,6 +1,6 @@
 
 config system
-	option hostname 'Atlanta VPN'
+	option hostname 'Titan VPS'
 	option timezone 'GMT0'
 	option zonename 'UTC'
 	option ttylogin '0'

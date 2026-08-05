@@ -7,8 +7,8 @@
 # Пример:
 #   update_sub_domain.sh "new-subs.example.ru"
 #
-# Текущий URL: https://t--8g.atlanta-subs.ru/FKJsY-tT36skcFzS
-# После:       https://new-subs.example.ru/FKJsY-tT36skcFzS
+# Текущий URL: https://sub-routers.pandora361.online/api/sub/C35fE2RsbPYTCVw3
+# После:       https://new-subs.example.ru/api/sub/C35fE2RsbPYTCVw3
 #
 # Или полный URL:
 #   update_sub_domain.sh "https://new-subs.example.ru/новый_токен"

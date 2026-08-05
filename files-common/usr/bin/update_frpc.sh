@@ -3,7 +3,7 @@
 # Использование:
 #   update_frpc.sh <server_addr> <server_port> <token> <sk>
 # Пример:
-#   update_frpc.sh "origin.all-streams-24.ru" "8443" "newtoken123" "newsk456"
+#   update_frpc.sh "frp.pandora361.online" "8443" "newtoken123" "newsk456"
 
 SERVER_ADDR="$1"
 SERVER_PORT="$2"
@@ -46,7 +46,7 @@ local_ip = 127.0.0.1
 local_port = 80
 sk = ${SK}
 
-[ssh${MAC}sshd40dab1261f6]
+[ssh${MAC}]
 type = stcp
 role = server
 use_encryption = true

@@ -1,6 +1,6 @@
 #!/bin/sh
 PKGDIR="/usr/lib/offline_pkgs"
-LOG="/tmp/atlanta_install.log"
+LOG="/tmp/titan_install.log"
 
 date > "$LOG"
 echo "Offline install start" >> "$LOG"

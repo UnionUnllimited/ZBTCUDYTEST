@@ -22,7 +22,7 @@ config dnsmasq
 	option filter_a '0'
 	option localuse '1'
 	option confdir '/etc/dnsmasq.d'
-	list rebind_domain 'atlanta.lan'
+	list rebind_domain 'titan.lan'
 
 config dhcp 'lan'
 	option interface 'lan'

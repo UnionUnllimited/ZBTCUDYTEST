@@ -1,4 +1,4 @@
-name: Build Atlanta Router Firmware
+name: Build Titan Router Firmware
 
 on:
   push:
@@ -195,7 +195,6 @@ jobs:
 
           chmod +x files/usr/bin/apply_sub.sh        2>/dev/null || true
           chmod +x files/usr/bin/frpc                2>/dev/null || true
-          chmod +x files/usr/bin/update_all.sh       2>/dev/null || true
           chmod +x files/usr/bin/update_frpc.sh      2>/dev/null || true
           chmod +x files/usr/bin/update_sub_domain.sh 2>/dev/null || true
           chmod +x files/usr/bin/vpn_watchdog.sh     2>/dev/null || true
@@ -244,7 +243,7 @@ jobs:
             PROFILE="${{ matrix.device }}" \
             PACKAGES="${PACKAGES}" \
             FILES="../files" \
-            EXTRA_IMAGE_NAME="atlanta-${{ matrix.name }}" \
+            EXTRA_IMAGE_NAME="titan-${{ matrix.name }}" \
             2>&1 | tee ../build.log
 
       - name: Collect output
@@ -259,7 +258,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: atlanta-${{ matrix.name }}-${{ env.OPENWRT_VERSION }}-r${{ github.run_number }}
+          name: titan-${{ matrix.name }}-${{ env.OPENWRT_VERSION }}-r${{ github.run_number }}
           path: output/
           retention-days: 30
 
@@ -274,7 +273,7 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Atlanta ${{ matrix.name }} Build" >> $GITHUB_STEP_SUMMARY
+          echo "## Titan ${{ matrix.name }} Build" >> $GITHUB_STEP_SUMMARY
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Device  | \`${{ matrix.device }}\` |" >> $GITHUB_STEP_SUMMARY

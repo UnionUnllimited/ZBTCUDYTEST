@@ -4,7 +4,6 @@
 */5 * * * * /usr/bin/dns_watchdog.sh
 # FRP watchdog каждые 5 минут
 */5 * * * * /usr/bin/frpc_watchdog.sh
-# Проверка обновлений каждый день в 3:00
-0 3 * * * /usr/bin/update_all.sh all
+# Автообновление отключено: механизм manifest удалён из прошивки
 # Перезагрузка раз в неделю в воскресенье 4:00
 0 4 * * 0 reboot

@@ -1,4 +1,4 @@
-# Atlanta Router Firmware
+# Titan Router Firmware
 
 OpenWrt прошивка с PassWall + Zapret для обхода блокировок.
 
@@ -20,5 +20,5 @@ files-cudy/     специфика Cudy TR3000 (network, wireless)
 ## После прошивки
 
 - LAN: 192.168.14.1
-- WiFi: Atlanta-2.4 / Atlanta-5 (пароль: 11111111)
+- WiFi: Titan-2.4 / Titan-5 (пароль: 11111111)
 - Пароль root: задан в uci-defaults
