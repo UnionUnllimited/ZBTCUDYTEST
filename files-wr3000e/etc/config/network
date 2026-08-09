@@ -23,9 +23,9 @@ config interface 'lan'
 	option ip6assign '60'
 
 config interface 'wan'
-	option device 'eth1'
+	option device 'wan'
 	option proto 'dhcp'
 
 config interface 'wan6'
-	option device 'eth1'
+	option device 'wan'
 	option proto 'dhcpv6'

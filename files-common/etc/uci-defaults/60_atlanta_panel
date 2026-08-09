@@ -2951,7 +2951,7 @@ input::placeholder{color:var(--dim)}
                     <span class="ir-label">Установленная версия</span>
                     <span class="ir-value" style="font-size:11px;font-family:monospace">${ES_INSTALLED_VER}</span>
                   </div>
-                  <div class="info-hint">ℹ️ Автоматическое обновление каждый день в 04:00. Можно запустить вручную.</div>
+                  <div class="info-hint">ℹ️ Автоматическое обновление отключено. Запускается только вручную этой кнопкой.</div>
                   <div class="row">
                     <button class="btn secondary" style="flex:1" type="button" onclick="pact('router_update_now')">🔄 Обновить сейчас</button>
                     <button class="btn danger" type="button" onclick="pact('reboot')">↺ Перезагрузить роутер</button>
