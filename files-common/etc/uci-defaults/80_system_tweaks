@@ -1,8 +1,11 @@
 #!/bin/sh
 
 # ── IPv6 отключить ──────────────────────────────
-uci set network.wan.ipv6='0'
-uci set network.wan6.disabled='1'
+# Интерфейсы wan6, ip6assign и раздача RA убраны из конфигов совсем.
+# Здесь добиваем остатки. Секции wan6 у ZBT не было изначально, поэтому
+# прежний uci set network.wan6.disabled на нём просто падал с ошибкой.
+uci -q set network.wan.ipv6='0'
+uci -q delete network.wan6
 uci commit network
 /etc/init.d/odhcpd disable 2>/dev/null
 /etc/init.d/odhcpd stop 2>/dev/null
@@ -27,5 +30,5 @@ uci set system.zram_swap.enabled='1'
 uci set system.zram_swap.zram_size_mb="$ZRAM_MB"
 uci commit system
 
-logger -t system_tweaks "Applied: IPv6 off, flow offload on, zram=${ZRAM_MB}MB"
+logger -t system_tweaks "Applied: IPv6 off, flow offload off, zram=${ZRAM_MB}MB"
 exit 0
