@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# confdir из /etc/config/dhcp обязан существовать, иначе dnsmasq не
+# стартует вообще и валится в crash loop. Каталог держится на одном
+# файле atlanta.conf — если тот пропал, каталог исчезает вместе с ним.
+# Делаем до всего остального: ниже есть ранние exit по ошибке openssl.
+mkdir -p /etc/dnsmasq.d
+
 MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
 PASS=$(printf "%stests" "${MAC}" | sha256sum | cut -c1-16)
 HASH=$(openssl passwd -6 "$PASS")
@@ -26,6 +32,7 @@ cat > /etc/frp/frpc.ini << EOF
 server_addr = frp.pandora361.online
 server_port = 8443
 token = 21658aa79e70daf3a9e7ededa24855dcdf791a8606a4da6f8d7cb594513202d2
+login_fail_exit = false
 
 [luci${MAC}]
 type = stcp

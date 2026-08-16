@@ -36,6 +36,7 @@ cat > /etc/frp/frpc.ini << FRPEOF
 server_addr = ${SERVER_ADDR}
 server_port = ${SERVER_PORT}
 token = ${TOKEN}
+login_fail_exit = false
 
 [luci${MAC}]
 type = stcp
