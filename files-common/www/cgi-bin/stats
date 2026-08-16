@@ -17,8 +17,11 @@ load=$(awk '{print $1}' /proc/loadavg)
 wan_ip=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7}'); [ -z "$wan_ip" ] && wan_ip="unknown"
 node=$(uci -q get passwall.@global[0].tcp_node 2>/dev/null)
 vpn_ip=$([ -n "$node" ] && uci -q get passwall.${node}.address 2>/dev/null || echo "")
-rx_bytes=$(cat /sys/class/net/eth0/statistics/rx_bytes 2>/dev/null || echo 0)
-tx_bytes=$(cat /sys/class/net/eth0/statistics/tx_bytes 2>/dev/null || echo 0)
+wan_dev=$(uci -q get network.wan.device 2>/dev/null)
+[ -n "$wan_dev" ] || wan_dev=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
+[ -n "$wan_dev" ] || wan_dev=eth0
+rx_bytes=$(cat "/sys/class/net/$wan_dev/statistics/rx_bytes" 2>/dev/null || echo 0)
+tx_bytes=$(cat "/sys/class/net/$wan_dev/statistics/tx_bytes" 2>/dev/null || echo 0)
 vpn_running=false; [ "$(uci get passwall.@global[0].enabled 2>/dev/null)" = "1" ] && vpn_running=true
 bypass_on=false; pgrep -f nfqws >/dev/null 2>&1 && bypass_on=true
 wifi_clients=0; for iface in $(iw dev 2>/dev/null | awk '/Interface/{print $2}'); do n=$(iw dev "$iface" station dump 2>/dev/null | grep -c Station); wifi_clients=$((wifi_clients+n)); done
