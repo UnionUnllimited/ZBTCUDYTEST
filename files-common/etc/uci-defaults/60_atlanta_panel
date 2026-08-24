@@ -27,6 +27,14 @@ WIFI_SSID_24="Titan-2.4"
 WIFI_SSID_5="Titan-5"
 # При первой прошивке Wi-Fi открытый (без пароля) — клиент задаёт пароль в мастере
 
+# ── Чистая прошивка или обновление ──────────────────────────────
+# Маркер перечислен в /etc/sysupgrade.conf, поэтому переживает
+# sysupgrade с сохранением настроек. Нет маркера — роутер прошит
+# начисто, ставим значения по умолчанию. Есть — на роутере уже есть
+# настройки клиента, и Wi-Fi, пароль панели и LAN трогать нельзя.
+MARKER="/etc/titan_installed"
+if [ -f "$MARKER" ]; then FRESH=0; else FRESH=1; fi
+
 # ── [1/8] Директории ────────────────────────────────────────────
 step "[1/8] Подготовка окружения"
 mkdir -p "$CGI_DIR"
@@ -34,7 +42,10 @@ mkdir -p /etc/config
 ok "Директории созданы"
 
 # ── [2/8] UCI-конфиг ────────────────────────────────────────────
-step "[2/8] Записываем UCI-конфигурацию"
+step "[2/8] Проверяем UCI-конфигурацию"
+if [ -s "$CONF" ]; then
+  ok "Конфиг панели уже есть — логин и пароль клиента сохранены"
+else
 cat >"$CONF" <<'UCI'
 config atl_panel 'main'
   option user 'admin'
@@ -42,7 +53,8 @@ config atl_panel 'main'
   option upd_version_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/version.txt'
   option upd_script_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/update.sh'
 UCI
-ok "UCI-конфиг готов"
+  ok "UCI-конфиг создан"
+fi
 
 # ── [3/8] CGI-скрипт панели ────────────────────────────────────
 # Панель поставляется файлом образа: files-common/www/cgi-bin/panel.
@@ -88,6 +100,10 @@ fi
 ok "Страница /my-mac/ установлена"
 
 # ── [6/8] Wi-Fi ───────────────────────────────────────────────
+if [ "$FRESH" = 0 ]; then
+step "[6/8] Wi-Fi клиента не трогаем"
+info "Роутер уже настроен: SSID и пароль сохранены"
+else
 step "[6/8] Настраиваем Wi-Fi"
 uci -q set wireless.radio0.disabled='0' 2>/dev/null || true
 uci -q set wireless.radio1.disabled='0' 2>/dev/null || true
@@ -118,12 +134,18 @@ if uci -q get wireless.radio1.type >/dev/null 2>&1; then
 fi
 uci -q commit wireless 2>/dev/null || true
 ok "Wi-Fi настроен"
+fi
 
 # ── [7/8] Сеть ────────────────────────────────────────────────
 step "[7/8] Настраиваем LAN"
-uci -q set network.lan.ipaddr="$LAN_IP"
-uci -q set network.lan.netmask="$LAN_MASK"
-uci -q commit network
+if [ "$FRESH" = 1 ]; then
+  uci -q set network.lan.ipaddr="$LAN_IP"
+  uci -q set network.lan.netmask="$LAN_MASK"
+  uci -q commit network
+else
+  LAN_IP="$(uci -q get network.lan.ipaddr 2>/dev/null || echo "$LAN_IP")"
+  info "LAN клиента сохранён: $LAN_IP"
+fi
 rm -f /www/cgi-bin/atl_netstatus 2>/dev/null || true
 
 # ── Добавляем titan.lan hostname ──────────────────────────────
@@ -140,8 +162,7 @@ uci -q set dhcp.@dnsmasq[0].confdir='/etc/dnsmasq.d'
 uci -q commit dhcp 2>/dev/null || true
 
 # 4. Добавляем titan.lan в rebind-domain-ok (иначе dnsmasq блокирует LAN-IP ответы)
-uci -q delete dhcp.@dnsmasq[0].rebind_domain 2>/dev/null || true
-uci -q add_list dhcp.@dnsmasq[0].rebind_domain='titan.lan'
+uci -q get dhcp.@dnsmasq[0].rebind_domain 2>/dev/null | grep -qw 'titan.lan'   || uci -q add_list dhcp.@dnsmasq[0].rebind_domain='titan.lan'
 uci -q set dhcp.@dnsmasq[0].rebind_protection='1'
 uci -q commit dhcp 2>/dev/null || true
 ok "LAN IP: $LAN_IP"
@@ -189,7 +210,7 @@ fi
 
 # ── Убираем дублирующий after_passwall из автозапуска ─────────
 # ── Инициализируем файл версии если отсутствует ───────────────
-echo "4.1.9" > /etc/atl_panel_update_state
+[ -s /etc/atl_panel_update_state ] || echo "4.1.9" > /etc/atl_panel_update_state
 ok "Версия панели инициализирована"
 
 step "[+] Чистим лишние задачи cron"
@@ -203,6 +224,10 @@ mv /tmp/atl_cron_tmp /etc/crontabs/root
 /etc/init.d/cron restart >/dev/null 2>&1 || true
 ok "Cron: обновление подписки в 04:00"
 
+
+# ── Маркер установки ─────────────────────────────────────────
+# Следующий запуск по нему поймёт, что роутер уже настроен.
+date > "$MARKER"
 
 # ── Финальный баннер ─────────────────────────────────────────
 printf '\n'
