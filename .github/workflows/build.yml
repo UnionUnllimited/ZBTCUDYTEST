@@ -201,9 +201,7 @@ jobs:
           chmod +x files/usr/bin/dns_watchdog.sh     2>/dev/null || true
           chmod +x files/usr/bin/frpc_watchdog.sh    2>/dev/null || true
           chmod +x files/usr/bin/xray                2>/dev/null || true
-          chmod +x files/www/cgi-bin/dbg              2>/dev/null || true
-          chmod +x files/www/cgi-bin/mymacad          2>/dev/null || true
-          chmod +x files/www/cgi-bin/stats            2>/dev/null || true
+          chmod +x files/www/cgi-bin/*                2>/dev/null || true
           chmod +x files/etc/uci-defaults/*           2>/dev/null || true
           chmod +x files/etc/hotplug.d/*/*            2>/dev/null || true
           chmod +x files/etc/init.d/*                 2>/dev/null || true
