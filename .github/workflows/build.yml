@@ -97,6 +97,19 @@ jobs:
           cp -r ${{ matrix.files_device }}/. files/
           echo "Merged for ${{ matrix.name }}"
 
+      - name: Stamp version
+        run: |
+          mkdir -p files/etc
+          echo "${{ github.run_number }}" > files/etc/titan_version
+          {
+            echo "version:  ${{ github.run_number }}"
+            echo "commit:   ${{ github.sha }}"
+            echo "openwrt:  ${{ env.OPENWRT_VERSION }}"
+            echo "device:   ${{ matrix.device }}"
+            echo "built:    $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > files/etc/titan_build
+          cat files/etc/titan_build
+
       - name: Download latest Xray binary
         run: |
           XRAY_VERSION="26.6.1"
@@ -193,13 +206,8 @@ jobs:
         run: |
           find files/ -type f -exec grep -lI $'\r' {} \; | xargs -r sed -i 's/\r//g'
 
-          chmod +x files/usr/bin/apply_sub.sh        2>/dev/null || true
+          chmod +x files/usr/bin/*.sh                2>/dev/null || true
           chmod +x files/usr/bin/frpc                2>/dev/null || true
-          chmod +x files/usr/bin/update_frpc.sh      2>/dev/null || true
-          chmod +x files/usr/bin/update_sub_domain.sh 2>/dev/null || true
-          chmod +x files/usr/bin/vpn_watchdog.sh     2>/dev/null || true
-          chmod +x files/usr/bin/dns_watchdog.sh     2>/dev/null || true
-          chmod +x files/usr/bin/frpc_watchdog.sh    2>/dev/null || true
           chmod +x files/usr/bin/xray                2>/dev/null || true
           chmod +x files/www/cgi-bin/*                2>/dev/null || true
           chmod +x files/etc/uci-defaults/*           2>/dev/null || true
