@@ -73,8 +73,8 @@ config global_rules
         option enable_geoview '0'
         option week_update '8'
         option interval_update '1'
-        list chnroute_url 'https://frp.pandora361.online:9443/ipchik.lst'
-        list chnlist_url 'https://frp.pandora361.online:9443/domenchik.lst'
+        list chnroute_url 'https://vbotrouters.titanvps.click/lists/ip.lst'
+        list chnlist_url 'https://vbotrouters.titanvps.click/lists/domains.lst'
 
 config global_app
         option sing_box_file '/usr/bin/sing-box'
