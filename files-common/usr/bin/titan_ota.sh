@@ -10,6 +10,14 @@
 #      uci set atl_panel.main.ota_url='https://…/manifest.json'
 #      uci commit atl_panel
 #
+#  Зеркал может быть несколько, перебираются по порядку до первого
+#  ответившего. Каждое отдаёт свой манифест со ссылками на свои же
+#  образы, поэтому упавший хост выпадает из схемы целиком:
+#      uci delete atl_panel.main.ota_url
+#      uci add_list atl_panel.main.ota_url='https://первый/manifest.json'
+#      uci add_list atl_panel.main.ota_url='https://второй/manifest.json'
+#      uci commit atl_panel
+#
 #  Ручной запуск:
 #      titan_ota.sh check   посмотреть, что доступно, без установки
 #      titan_ota.sh now     обновить немедленно, минуя волну и задержку
@@ -38,9 +46,11 @@ fi
 echo $$ > "$LOCK"
 trap cleanup EXIT INT TERM
 
-# ── Адрес манифеста ──────────────────────────────────────────────
-OTA_URL="$(uci -q get atl_panel.main.ota_url 2>/dev/null || true)"
-[ -n "$OTA_URL" ] || { log "ota_url не задан — выходим"; exit 0; }
+# ── Адреса манифеста ─────────────────────────────────────────────
+# uci отдаёт список через пробел, поэтому одиночная option и список
+# из add_list разбираются одинаково.
+OTA_URLS="$(uci -q get atl_panel.main.ota_url 2>/dev/null || true)"
+[ -n "$OTA_URLS" ] || { log "ota_url не задан — выходим"; exit 0; }
 
 # ── Не трогаем только что загрузившийся роутер ───────────────────
 # Первые минуты после старта сеть и туннель могут быть нестабильны.
@@ -60,9 +70,19 @@ fi
 mkdir -p "$WORK"
 
 # ── Манифест ─────────────────────────────────────────────────────
-curl -fsSL --max-time 60 --retry 2 "$OTA_URL" -o "$WORK/manifest.json" \
-    || die "манифест недоступен: $OTA_URL"
-[ -s "$WORK/manifest.json" ] || die "манифест пуст"
+# Перебираем зеркала до первого ответившего.
+OTA_URL=""
+for u in $OTA_URLS; do
+    if curl -fsSL --max-time 60 --retry 1 "$u" -o "$WORK/manifest.json" \
+       && [ -s "$WORK/manifest.json" ]; then
+        OTA_URL="$u"
+        log "манифест взят с $u"
+        break
+    fi
+    log "зеркало не ответило: $u"
+    rm -f "$WORK/manifest.json"
+done
+[ -n "$OTA_URL" ] || die "ни одно зеркало не отдало манифест"
 
 # jsonfilter есть в базовой поставке; на всякий случай грубый запасной разбор
 jget() {
