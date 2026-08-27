@@ -31,5 +31,16 @@ mac=$(cat /sys/class/net/br-lan/address 2>/dev/null || echo "00:00:00:00:00:00")
 fw=$(grep DISTRIB_RELEASE /etc/openwrt_release 2>/dev/null | cut -d= -f2 | tr -d "\"'")
 board=$(cat /tmp/sysinfo/board_name 2>/dev/null || echo "unknown")
 frpc_running=false; pgrep -f frpc >/dev/null 2>&1 && frpc_running=true
-printf '{"mac":"%s","board":"%s","fw":"%s","uptime_sec":%s,"load":%s,"cpu_pct":%s,"ram":{"total_kb":%s,"used_kb":%s,"pct":%s},"temp_c":%s,"network":{"wan_ip":"%s","vpn_ip":"%s","rx_bytes":%s,"tx_bytes":%s},"clients":{"wifi":%s,"dhcp":%s},"vpn_active":%s,"bypass_on":%s,"frpc_running":%s,"ts":%s}\n' "$mac" "$board" "$fw" "$uptime_sec" "$load" "$cpu_pct" "$mem_total" "$mem_used" "$ram_pct" "$temp" "$wan_ip" "$vpn_ip" "$rx_bytes" "$tx_bytes" "$wifi_clients" "$dhcp_clients" "$vpn_running" "$bypass_on" "$frpc_running" "$(date +%s)"
+# Номер сборки прошивки. Панель сравнивает его с version из манифеста,
+# поэтому нужно целое, а не человекочитаемое 25.12.3. Нет файла или в
+# нём мусор — отдаём null: "не сообщил" и "нулевая сборка" это разное.
+titan_build=$(cat /etc/titan_version 2>/dev/null | tr -dc '0-9')
+[ -n "$titan_build" ] || titan_build=null
+# Итог последнего похода за манифестом: ok, no_update, not_in_rollout,
+# no_image, download_failed, sha_mismatch, flash_failed.
+ota_status=$(awk '{print $1}' /etc/titan_ota_status 2>/dev/null)
+[ -n "$ota_status" ] && ota_status="\"$ota_status\"" || ota_status=null
+ota_at=$(awk '{print $2}' /etc/titan_ota_status 2>/dev/null | tr -dc '0-9')
+[ -n "$ota_at" ] || ota_at=null
+printf '{"mac":"%s","board":"%s","fw":"%s","uptime_sec":%s,"load":%s,"cpu_pct":%s,"ram":{"total_kb":%s,"used_kb":%s,"pct":%s},"temp_c":%s,"network":{"wan_ip":"%s","vpn_ip":"%s","rx_bytes":%s,"tx_bytes":%s},"clients":{"wifi":%s,"dhcp":%s},"vpn_active":%s,"bypass_on":%s,"frpc_running":%s,"titan_build":%s,"titan_update_status":%s,"titan_update_at":%s,"ts":%s}\n' "$mac" "$board" "$fw" "$uptime_sec" "$load" "$cpu_pct" "$mem_total" "$mem_used" "$ram_pct" "$temp" "$wan_ip" "$vpn_ip" "$rx_bytes" "$tx_bytes" "$wifi_clients" "$dhcp_clients" "$vpn_running" "$bypass_on" "$frpc_running" "$titan_build" "$ota_status" "$ota_at" "$(date +%s)"
 

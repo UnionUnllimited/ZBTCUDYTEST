@@ -28,13 +28,19 @@ set -u
 LOG_TAG="titan_ota"
 VERSION_FILE="/etc/titan_version"
 STATE_FILE="/etc/titan_ota_state"
+STATUS_FILE="/etc/titan_ota_status"
 LOCK="/tmp/titan_ota.lock"
 WORK="/tmp/titan_ota"
 MODE="${1:-auto}"
 
 log() { logger -t "$LOG_TAG" "$*"; [ "$MODE" != auto ] && printf '%s\n' "$*"; }
-die() { log "$*"; cleanup; exit 1; }
+die() { [ -n "${2:-}" ] && set_status "$2"; log "$1"; cleanup; exit 1; }
 cleanup() { rm -rf "$WORK"; rm -f "$LOCK"; }
+
+# Статус последнего похода за манифестом — его читает /cgi-bin/stats
+# и отдаёт в панель. Пишем в /etc, чтобы переживал перезагрузку:
+# проверка ночная, а опрос из панели может прийти когда угодно.
+set_status() { echo "$1 $(date +%s)" > "$STATUS_FILE"; }
 
 # ── Защита от параллельного запуска ──────────────────────────────
 if [ -f "$LOCK" ]; then
@@ -113,14 +119,15 @@ log "текущая версия $CUR_VER, доступна $NEW_VER, модел
 
 if [ "$NEW_VER" -le "$CUR_VER" ]; then
     log "обновление не требуется"
+    set_status no_update
     exit 0
 fi
 
 URL="$(jget "@.images[\"$BOARD\"].url" url)"
 SHA="$(jget "@.images[\"$BOARD\"].sha256" sha256)"
 SIZE="$(jget "@.images[\"$BOARD\"].size" size)"
-[ -n "$URL" ] || die "в манифесте нет образа для $BOARD"
-[ -n "$SHA" ] || die "в манифесте нет sha256 для $BOARD"
+[ -n "$URL" ] || die "в манифесте нет образа для $BOARD" no_image
+[ -n "$SHA" ] || die "в манифесте нет sha256 для $BOARD" no_image
 
 # ── Волна раскатки ───────────────────────────────────────────────
 # Роутер вычисляет свой номер от 0 до 99 по хешу собственного MAC.
@@ -132,6 +139,7 @@ BUCKET=$(( 0x$(printf '%s' "$MAC" | sha256sum | cut -c1-2) * 100 / 256 ))
 log "волна: роутер $BUCKET, открыто $ROLLOUT"
 if [ "$MODE" = auto ] && [ "$BUCKET" -ge "$ROLLOUT" ]; then
     log "ещё не наша волна — ждём расширения"
+    set_status not_in_rollout
     exit 0
 fi
 
@@ -160,22 +168,22 @@ NEED=$(( ${SIZE:-30000000} / 1024 + 20000 ))
 # ── Скачивание ───────────────────────────────────────────────────
 IMG="$WORK/firmware.bin"
 log "качаем $URL"
-curl -fsSL --max-time 900 --retry 2 "$URL" -o "$IMG" || die "образ не скачался"
-[ -s "$IMG" ] || die "образ пуст"
+curl -fsSL --max-time 900 --retry 2 "$URL" -o "$IMG" || die "образ не скачался" download_failed
+[ -s "$IMG" ] || die "образ пуст" download_failed
 
 # ── Проверка целостности ─────────────────────────────────────────
 # Главная защита от кирпича: оборванная закачка, записанная в флеш —
 # это выезд к клиенту.
 GOT="$(sha256sum "$IMG" | cut -d' ' -f1)"
 if [ "$GOT" != "$SHA" ]; then
-    die "sha256 не совпал: ожидали $SHA, получили $GOT"
+    die "sha256 не совпал: ожидали $SHA, получили $GOT" sha_mismatch
 fi
 log "sha256 совпал"
 
 # ── Проверка совместимости ───────────────────────────────────────
 # -T проверяет образ, ничего не записывая: та ли модель, не побит ли.
 if ! sysupgrade -T "$IMG" >/dev/null 2>&1; then
-    die "sysupgrade отверг образ — не для этой модели или повреждён"
+    die "sysupgrade отверг образ — не для этой модели или повреждён" flash_failed
 fi
 log "образ принят проверкой sysupgrade"
 
@@ -194,4 +202,11 @@ sync
 log "ставим версию $NEW_VER, роутер перезагрузится"
 rm -f "$LOCK"
 trap - EXIT INT TERM
+# Успехом считаем момент перед записью: всё проверено и принято.
+# Если sysupgrade вернёт управление, значит запись не состоялась —
+# перетираем на flash_failed. При удачной прошивке роутер уходит в
+# перезагрузку и сюда уже не возвращается.
+set_status ok
 sysupgrade "$IMG"
+set_status flash_failed
+log "sysupgrade вернул управление — прошивка не состоялась"
