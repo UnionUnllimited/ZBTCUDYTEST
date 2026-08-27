@@ -27,6 +27,7 @@ set -u
 
 LOG_TAG="titan_ota"
 VERSION_FILE="/etc/titan_version"
+STATE_FILE="/etc/titan_ota_state"
 LOCK="/tmp/titan_ota.lock"
 WORK="/tmp/titan_ota"
 MODE="${1:-auto}"
@@ -134,6 +135,19 @@ if [ "$MODE" = auto ] && [ "$BUCKET" -ge "$ROLLOUT" ]; then
     exit 0
 fi
 
+# ── Защита от бесконечного цикла ─────────────────────────────────
+# Если версия в манифесте не совпадает с той, что реально внутри
+# образа, роутер поставит его, после перезагрузки увидит прежнюю
+# версию у себя и пойдёт ставить снова — и так каждую ночь. Считаем
+# попытки и после трёх останавливаемся, чтобы ошибка публикации не
+# превратилась в вечную переустановку на всём парке.
+LAST_VER="$(awk '{print $1}' "$STATE_FILE" 2>/dev/null)"
+LAST_TRIES="$(awk '{print $2}' "$STATE_FILE" 2>/dev/null)"
+case "$LAST_TRIES" in ""|*[!0-9]*) LAST_TRIES=0;; esac
+if [ "$LAST_VER" = "$NEW_VER" ] && [ "$LAST_TRIES" -ge 3 ]; then
+    die "версия $NEW_VER ставилась $LAST_TRIES раза, а роутер всё ещё на $CUR_VER — в образе другая версия, остановлено"
+fi
+
 [ "$MODE" = check ] && { log "проверка завершена, установка не запускалась"; exit 0; }
 
 # ── Место под образ ──────────────────────────────────────────────
@@ -169,6 +183,14 @@ log "образ принят проверкой sysupgrade"
 # Настройки сохраняем: /etc/titan_installed лежит в sysupgrade.conf,
 # по нему установщик поймёт, что роутер уже настроен, и не тронет
 # Wi-Fi и пароль панели клиента.
+# Отмечаем попытку до записи: если прошивка не поднимется, счётчик
+# уже увеличен и цикл не начнётся.
+if [ "$LAST_VER" = "$NEW_VER" ]; then
+    echo "$NEW_VER $((LAST_TRIES + 1))" > "$STATE_FILE"
+else
+    echo "$NEW_VER 1" > "$STATE_FILE"
+fi
+sync
 log "ставим версию $NEW_VER, роутер перезагрузится"
 rm -f "$LOCK"
 trap - EXIT INT TERM
