@@ -249,7 +249,7 @@ jobs:
             PROFILE="${{ matrix.device }}" \
             PACKAGES="${PACKAGES}" \
             FILES="../files" \
-            EXTRA_IMAGE_NAME="titan-${{ matrix.name }}" \
+            EXTRA_IMAGE_NAME="titan-r${{ github.run_number }}-${{ matrix.name }}" \
             2>&1 | tee ../build.log
 
       - name: Collect output
