@@ -228,6 +228,20 @@ rm -f /usr/bin/youtube_strategy_autoselect.sh 2>/dev/null || true
 grep -vE "youtube_strategy|after_passwall|autoselect|passwall.*subscribe|atl_nightly" /etc/crontabs/root > /tmp/atl_cron_tmp 2>/dev/null || true
 echo "0 4 * * * lua /usr/share/passwall/subscribe.lua >>/tmp/atl_panel_passwall_update.log 2>&1" >> /tmp/atl_cron_tmp
 mv /tmp/atl_cron_tmp /etc/crontabs/root
+
+# Наши задачи на обновлённых роутерах сами не появляются:
+# /etc/crontabs/root сохраняется при sysupgrade, и новые строки из
+# образа туда не попадают. Дописываем недостающие, не трогая чужие.
+for job in \
+  "*/10 * * * * /usr/bin/vpn_watchdog.sh" \
+  "*/5 * * * * /usr/bin/dns_watchdog.sh" \
+  "*/5 * * * * /usr/bin/frpc_watchdog.sh" \
+  "30 4 * * * /usr/bin/titan_ota.sh"
+do
+  bin="${job##* }"
+  [ -x "$bin" ] || continue
+  grep -qF "$bin" /etc/crontabs/root 2>/dev/null || echo "$job" >> /etc/crontabs/root
+done
 /etc/init.d/cron restart >/dev/null 2>&1 || true
 ok "Cron: обновление подписки в 04:00"
 
