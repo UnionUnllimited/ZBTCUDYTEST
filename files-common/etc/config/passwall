@@ -6,7 +6,7 @@ config global
         option remote_dns '8.8.8.8'
         option dns_redirect '1'
         option use_gfw_list '0'
-        option chn_list 'proxy'
+        option chn_list 'direct'
         option tcp_proxy_mode 'proxy'
         option udp_proxy_mode 'proxy'
         option localhost_proxy '1'
@@ -74,7 +74,9 @@ config global_rules
         option week_update '8'
         option interval_update '1'
         list chnroute_url 'https://vbotrouters.titanvps.click/lists/ip.lst'
+        list chnroute_url 'https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/testip.lst'
         list chnlist_url 'https://vbotrouters.titanvps.click/lists/domains.lst'
+        list chnlist_url 'https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/test.lst'
 
 config global_app
         option sing_box_file '/usr/bin/sing-box'

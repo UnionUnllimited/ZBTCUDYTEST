@@ -63,6 +63,26 @@ uci -q get atl_panel.main.ota_url >/dev/null 2>&1 || {
   uci -q commit atl_panel
 }
 
+# Списки chnlist и chnroute сменили смысл: раньше в них лежало то, что
+# гнать в туннель, теперь — российское, которое должно идти напрямую.
+# Поэтому chn_list переводится с proxy на direct, и одновременно
+# меняются адреса: старые указывали на другой набор и вдобавок были
+# перепутаны местами — домены в поле для адресов и наоборот.
+# Менять надо оба разом: при режиме proxy с новыми списками весь
+# российский трафик ушёл бы в VPN.
+if [ "$(uci -q get passwall.@global[0].chn_list 2>/dev/null)" = "proxy" ]; then
+  uci -q set passwall.@global[0].chn_list='direct'
+  uci -q delete passwall.@global_rules[0].chnroute_url
+  uci -q delete passwall.@global_rules[0].chnlist_url
+  uci -q add_list passwall.@global_rules[0].chnroute_url='https://vbotrouters.titanvps.click/lists/ip.lst'
+  uci -q add_list passwall.@global_rules[0].chnroute_url='https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/testip.lst'
+  uci -q add_list passwall.@global_rules[0].chnlist_url='https://vbotrouters.titanvps.click/lists/domains.lst'
+  uci -q add_list passwall.@global_rules[0].chnlist_url='https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/test.lst'
+  uci -q commit passwall
+  rm -f /usr/share/passwall/rules/chnlist /usr/share/passwall/rules/chnroute 2>/dev/null
+  ok "PassWall: chn_list в direct, адреса списков обновлены"
+fi
+
 # PassWall 26.8.26 при tcp_proxy_mode=disable не создаёт правил
 # перенаправления вовсе: xray работает, а трафик идёт мимо туннеля,
 # и внешне это выглядит как исправный роутер без VPN. Значение было
