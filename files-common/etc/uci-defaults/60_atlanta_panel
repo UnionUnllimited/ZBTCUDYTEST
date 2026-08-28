@@ -63,6 +63,17 @@ uci -q get atl_panel.main.ota_url >/dev/null 2>&1 || {
   uci -q commit atl_panel
 }
 
+# /etc/sysupgrade.conf тоже сохраняется при обновлении, поэтому новые
+# строки из образа до уже работающих роутеров не доезжают — как и с
+# crontabs. Дописываем недостающие, не трогая чужие.
+for f in \
+  "/etc/titan_installed" \
+  "/etc/titan_ota_state" \
+  "/etc/titan_ota_status"
+do
+  grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
+done
+
 # ── [3/8] CGI-скрипт панели ────────────────────────────────────
 # Панель поставляется файлом образа: files-common/www/cgi-bin/panel.
 # Раньше её тело лежало здесь heredoc'ом и попадало только в overlay,
