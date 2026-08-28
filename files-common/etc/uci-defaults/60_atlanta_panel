@@ -63,6 +63,24 @@ uci -q get atl_panel.main.ota_url >/dev/null 2>&1 || {
   uci -q commit atl_panel
 }
 
+# PassWall 26.8.26 при tcp_proxy_mode=disable не создаёт правил
+# перенаправления вовсе: xray работает, а трафик идёт мимо туннеля,
+# и внешне это выглядит как исправный роутер без VPN. Значение было
+# неверным и раньше, просто 26.5.11 это переживала.
+# Конфиг passwall сохраняется при обновлении, поэтому на уже
+# настроенных роутерах чиним отдельно.
+PW_FIXED=0
+for o in tcp_proxy_mode udp_proxy_mode; do
+  if [ "$(uci -q get passwall.@global[0].$o 2>/dev/null)" = "disable" ]; then
+    uci -q set passwall.@global[0].$o='proxy'
+    PW_FIXED=1
+  fi
+done
+if [ "$PW_FIXED" = 1 ]; then
+  uci -q commit passwall
+  ok "PassWall: режим disable заменён на proxy"
+fi
+
 # /etc/sysupgrade.conf тоже сохраняется при обновлении, поэтому новые
 # строки из образа до уже работающих роутеров не доезжают — как и с
 # crontabs. Дописываем недостающие, не трогая чужие.
