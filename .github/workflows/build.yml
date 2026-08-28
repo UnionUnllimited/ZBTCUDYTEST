@@ -112,7 +112,7 @@ jobs:
 
       - name: Download latest Xray binary
         run: |
-          XRAY_VERSION="26.6.1"
+          XRAY_VERSION="26.7.28"
           echo "Xray version: $XRAY_VERSION"
           curl -L "https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-arm64-v8a.zip" \
             -o /tmp/xray.zip
