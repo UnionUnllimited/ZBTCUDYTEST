@@ -4,7 +4,9 @@
 */5 * * * * /usr/bin/dns_watchdog.sh
 # FRP watchdog каждые 5 минут
 */5 * * * * /usr/bin/frpc_watchdog.sh
-# Автообновление отключено: механизм manifest удалён из прошивки
+# Списки маршрутизации раз в 12 часов ставит сам PassWall (Loop Mode,
+# global_rules.update_week_mode=8). Здесь только подъём WAN — см.
+# hotplug.d/iface/20_titan_lists.
 # Перезагрузка раз в неделю в воскресенье 4:00
 0 4 * * 0 reboot
 # Обновление прошивки: скрипт сам берёт случайную задержку внутри часа

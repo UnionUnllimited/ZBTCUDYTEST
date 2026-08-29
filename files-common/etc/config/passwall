@@ -6,6 +6,7 @@ config global
         option remote_dns '8.8.8.8'
         option dns_redirect '1'
         option use_gfw_list '0'
+        option use_direct_list '0'
         option chn_list 'direct'
         option tcp_proxy_mode 'proxy'
         option udp_proxy_mode 'proxy'
@@ -58,7 +59,12 @@ config global_other
         option enable_group_balancing '1'
 
 config global_rules
-        option auto_update '1'
+        # Loop Mode раз в 12 часов. Здесь лежали auto_update, week_update и
+        # interval_update — имена из старых версий PassWall, эта читает
+        # update_week_mode и update_interval_mode, поэтому на вкладке
+        # Rule status режим показывался как Disable.
+        option update_week_mode '8'
+        option update_interval_mode '12'
         option chnlist_update '1'
         option chnroute_update '1'
         option chnroute6_update '0'
@@ -71,12 +77,8 @@ config global_rules
         option geosite_url 'https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat'
         option geo2rule '0'
         option enable_geoview '0'
-        option week_update '8'
-        option interval_update '1'
         list chnroute_url 'https://vbotrouters.titanvps.click/lists/ip.lst'
-        list chnroute_url 'https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/testip.lst'
         list chnlist_url 'https://vbotrouters.titanvps.click/lists/domains.lst'
-        list chnlist_url 'https://raw.githubusercontent.com/UnionUnllimited/domensrouter/refs/heads/main/test.lst'
 
 config global_app
         option sing_box_file '/usr/bin/sing-box'

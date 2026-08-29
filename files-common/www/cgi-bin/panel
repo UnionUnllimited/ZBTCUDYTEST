@@ -6,20 +6,25 @@ LINK_SUPPORT='https://t.me/TitanVPSHelp_bot'
 
 CONF="/etc/config/atl_panel"
 LOG="/tmp/atl_panel_passwall_update.log"
-UPD_LOG="/tmp/atl_panel_update.log"
-UPD_STATE="/etc/atl_panel_update_state"
 PANEL_VERSION="4.1.9"
 LOCK="/tmp/atl_panel_update.lock"
 
-touch "$LOG" "$UPD_LOG" 2>/dev/null || true
-chmod 666 "$LOG" "$UPD_LOG" 2>/dev/null || true
+# Обновление прошивки. Тот же titan_ota.sh, что ходит по cron ночью,
+# только с аргументом now: без задержки внутри часа и без ожидания
+# своей волны раскатки.
+OTA_SCRIPT="/usr/bin/titan_ota.sh"
+OTA_LOCK="/tmp/titan_ota.lock"
+OTA_RUN_LOG="/tmp/titan_ota_run.log"
+OTA_STATUS="/etc/titan_ota_status"
+OTA_VERSION="/etc/titan_version"
+
+touch "$LOG" 2>/dev/null || true
+chmod 666 "$LOG" 2>/dev/null || true
 
 [ -f "$CONF" ] || cat >"$CONF" <<'UCI'
 config atl_panel 'main'
   option user 'admin'
   option pass 'admin'
-  option upd_version_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/version.txt'
-  option upd_script_url 'https://raw.githubusercontent.com/UnionUnllimited/routeratl/refs/heads/main/update.sh'
 UCI
 
 # Конфиг хранится в /etc/config/atl_panel
@@ -43,9 +48,52 @@ strip_newlines(){ tr -d '\r\n'; }
 trim_spaces(){ awk '{gsub(/^[ \t]+|[ \t]+$/,""); print}'; }
 
 panel_version(){
-  v="$(cat "$UPD_STATE" 2>/dev/null | tr -d '\r\n' || true)"
-  [ -n "${v:-}" ] || v="$PANEL_VERSION"
-  printf "%s" "$v"
+  printf "%s" "$PANEL_VERSION"
+}
+
+# ── Обновление прошивки ─────────────────────────────────────────
+ota_build(){
+  _ota_b="$(cat "$OTA_VERSION" 2>/dev/null | tr -dc '0-9' || true)"
+  printf "%s" "${_ota_b:-}"
+}
+
+# Пока ota_url пуст, titan_ota.sh молча выходит — кнопке в панели
+# нечего запускать, честнее сказать об этом сразу.
+ota_ready(){
+  [ -x "$OTA_SCRIPT" ] || return 1
+  [ -n "$(uci -q get atl_panel.main.ota_url 2>/dev/null || true)" ] || return 1
+  return 0
+}
+
+# Скрипт держит собственный лок с pid — по нему же понимаем, идёт ли
+# сейчас проверка или закачка, чтобы не плодить параллельные заходы.
+ota_busy(){
+  [ -f "$OTA_LOCK" ] || return 1
+  _ota_p="$(cat "$OTA_LOCK" 2>/dev/null || true)"
+  [ -n "${_ota_p:-}" ] || return 1
+  [ -d "/proc/$_ota_p" ]
+}
+
+# Запуск отвязываем от сессии uhttpd: закачка образа идёт минутами, а
+# дальше sysupgrade пишет флеш. Такой процесс не должен зависеть от
+# того, жив ли CGI, который его породил.
+ota_spawn(){
+  : > "$OTA_RUN_LOG" 2>/dev/null || true
+  chmod 666 "$OTA_RUN_LOG" 2>/dev/null || true
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$OTA_SCRIPT" "$1" </dev/null >>"$OTA_RUN_LOG" 2>&1 &
+  else
+    "$OTA_SCRIPT" "$1" </dev/null >>"$OTA_RUN_LOG" 2>&1 &
+  fi
+}
+
+# Лог уезжает в JSON одной строкой. Управляющие символы вырезаем, но
+# табуляцию и перевод строки оставляем: по ним потом режем на строки.
+# Кириллица в логе есть, поэтому байты выше \177 не трогаем.
+json_escape(){
+  tr -d '\000-\010\013-\037' \
+    | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/    /g' \
+    | awk '{printf "%s\\n", $0}'
 }
 
 is_ascii(){ printf "%s" "$1" | LC_ALL=C grep -q '^[ -~]*$'; }
@@ -97,31 +145,10 @@ qenc(){
 redir(){
   msg="$(qenc "${1:-}")"
   err="$(qenc "${2:-}")"
-  upd="$(qenc "${3:-}")"
   echo "Status: 303 See Other"
-  echo "Location: /cgi-bin/panel?m=$msg&e=$err&u=$upd"
+  echo "Location: /cgi-bin/panel?m=$msg&e=$err"
   echo ""
   exit 0
-}
-
-fetch(){
-  url="$1"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --connect-timeout 15 --max-time 120 "$url"
-  else
-    wget -qO- --timeout=120 "$url"
-  fi
-}
-
-apply_update_script(){
-  script_url="$1"
-  tmp="/tmp/atl_update.sh"
-  echo "=== $(date) manual update start ===" >> "$UPD_LOG"
-  if fetch "$script_url" > "$tmp" 2>>"$UPD_LOG"; then
-    chmod +x "$tmp"
-    sh "$tmp" >> "$UPD_LOG" 2>&1 || true
-  fi
-  echo "=== $(date) manual update end ===" >> "$UPD_LOG"
 }
 
 detect_wan_iface(){
@@ -767,16 +794,9 @@ MAC="$(cat /sys/class/net/br-lan/address 2>/dev/null | tr '[:lower:]' '[:upper:]
 QS="${QUERY_STRING:-}"
 GET_M="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^m=//p' | head -n1 | urldecode 2>/dev/null || true)"
 GET_E="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^e=//p' | head -n1 | urldecode 2>/dev/null || true)"
-GET_U="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^u=//p' | head -n1 | urldecode 2>/dev/null || true)"
 GET_ACT="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^action=//p' | head -n1 | urldecode 2>/dev/null || true)"
 
-MSG="${GET_M:-}"; ERR="${GET_E:-}"; UPD_STATUS=""; UPD_COLOR=""
-if [ -n "${GET_U:-}" ]; then
-  case "$GET_U" in
-    ok)  UPD_STATUS="✅ Обновление выполнено."; UPD_COLOR="ok" ;;
-    bad) UPD_STATUS="❌ Ошибка обновления."; UPD_COLOR="bad" ;;
-  esac
-fi
+MSG="${GET_M:-}"; ERR="${GET_E:-}"
 
 FORM_action="" FORM_user="" FORM_pass="" FORM_new_user="" FORM_new_pass=""
 FORM_wan_proto="" FORM_pppoe_user="" FORM_pppoe_pass=""
@@ -1164,6 +1184,25 @@ if [ "${GET_ACT:-}" = "api_stats" ]; then
     CONNS="$(conntrack -L 2>/dev/null | wc -l || echo 0)"
   fi
   printf '{"iface":"%s","rx_bytes":%s,"tx_bytes":%s,"connections":%s}'     "$WIF" "$RX" "$TX" "$CONNS"
+  exit 0
+fi
+
+# ─── API: состояние обновления прошивки ─────────────────────────
+# Панель опрашивает его, пока идёт проверка или закачка: сам скрипт
+# работает в фоне и о ходе дела рассказывает только своим выводом.
+if [ "${GET_ACT:-}" = "api_ota" ]; then
+  echo "Content-type: application/json; charset=utf-8"
+  echo "Cache-Control: no-store, no-cache"
+  echo ""
+  _ob="$(ota_build)"; [ -n "$_ob" ] || _ob=null
+  _ost="$(awk '{print $1}' "$OTA_STATUS" 2>/dev/null || true)"
+  _oat="$(awk '{print $2}' "$OTA_STATUS" 2>/dev/null | tr -dc '0-9' || true)"
+  [ -n "${_oat:-}" ] || _oat=null
+  if ota_busy;  then _orun=true; else _orun=false; fi
+  if ota_ready; then _ordy=true; else _ordy=false; fi
+  printf '{"build":%s,"status":"%s","at":%s,"running":%s,"ready":%s,"log":"'     "$_ob" "${_ost:-}" "$_oat" "$_orun" "$_ordy"
+  tail -n 60 "$OTA_RUN_LOG" 2>/dev/null | json_escape
+  printf '"}'
   exit 0
 fi
 
@@ -1635,15 +1674,25 @@ REBOOTPAGE
     } </dev/null >/dev/null 2>&1 &
     redir "Обновление запущено в фоне. Займёт 15–30 сек." "" ""
     ;;
-  router_update_now)
-    SU="$(getcfg upd_script_url)"; VU="$(getcfg upd_version_url)"
-    [ -n "${SU:-}" ] || redir "" "URL update.sh не задан." ""
-    apply_update_script "$SU"
-    if [ -n "${VU:-}" ]; then
-      REMOTE_NOW="$(fetch "$VU" 2>/dev/null | tr -d '\r\n' | head -n1 || true)"
-      [ -n "${REMOTE_NOW:-}" ] && echo "$REMOTE_NOW" > "$UPD_STATE" 2>/dev/null || true
-    fi
-    redir "Скрипт обновления запущен." "" ""
+  ota_check)
+    ota_ready || redir "" "Обновление не настроено: адрес манифеста пуст."
+    if ota_busy; then redir "Проверка уже идёт, подождите." ""; fi
+    ota_spawn check
+    # Карточка обновления живёт на странице расширенных настроек,
+    # поэтому возвращаемся сразу туда, иначе ход проверки не виден.
+    echo "Status: 303 See Other"
+    echo "Location: /cgi-bin/panel?page=adv&ota=1&m=$(qenc 'Проверяем обновление…')"
+    echo ""; exit 0
+    ;;
+  ota_update_now)
+    ota_ready || redir "" "Обновление не настроено: адрес манифеста пуст."
+    if ota_busy; then redir "Обновление уже идёт, подождите." ""; fi
+    # То же самое, что делает cron ночью, только без ожидания своей
+    # волны раскатки и без случайной задержки внутри часа.
+    ota_spawn now
+    echo "Status: 303 See Other"
+    echo "Location: /cgi-bin/panel?page=adv&ota=1&m=$(qenc 'Обновление запущено. Если есть версия новее — роутер скачает её и перезагрузится сам.')"
+    echo ""; exit 0
     ;;
   pw_change_node)
     pw_exists || redir "" "VPN не настроен." ""
@@ -1651,7 +1700,7 @@ REBOOTPAGE
     pw_apply_node "$FORM_pw_node"
     _enc_node="$(qenc "$FORM_pw_node")"
     echo "Status: 303 See Other"
-    echo "Location: /cgi-bin/panel?m=$(qenc 'Сервер изменён.')&e=&u=&bw=8&nc=${_enc_node}"
+    echo "Location: /cgi-bin/panel?m=$(qenc 'Сервер изменён.')&e=&bw=8&nc=${_enc_node}"
     echo ""
     exit 0
     ;;
@@ -1795,6 +1844,21 @@ esac
 
 INSTALLED_VER="$(panel_version)"
 
+# Сборка прошивки и итог последнего похода за обновлением. Дальше их
+# обновляет опрос api_ota, но первую отрисовку делаем сразу — иначе
+# при закрытом аккордеоне там навсегда осталось бы «…».
+OTA_BUILD="$(ota_build)"
+[ -n "$OTA_BUILD" ] || OTA_BUILD="неизвестна"
+OTA_CODE="$(awk '{print $1}' "$OTA_STATUS" 2>/dev/null || true)"
+OTA_AT="$(awk '{print $2}' "$OTA_STATUS" 2>/dev/null | tr -dc '0-9' || true)"
+if ota_ready; then
+  OTA_DIS=""
+  OTA_HINT="ℹ️ Роутер проверяет обновления сам каждую ночь и ставит их по очереди, партиями. Эти кнопки делают то же самое сразу, без ожидания очереди."
+else
+  OTA_DIS="disabled"
+  OTA_HINT="⚠️ Адрес обновления не задан, кнопки не сработают. Обратитесь в поддержку."
+fi
+
 GUEST_STATE="$(guest_state)"
 case "$GUEST_STATE" in
   on)
@@ -1863,7 +1927,6 @@ ES_ERR="$(printf '%s' "${ERR:-}" | html_escape)"
 ES_WAN="$(printf '%s' "$CUR_WAN" | html_escape)"
 ES_WANIF="$(printf '%s' "$WAN_IFACE" | html_escape)"
 ES_MAC="$(printf '%s' "$MAC" | html_escape)"
-ES_UPD="$(printf '%s' "$UPD_STATUS" | html_escape)"
 ES_USER="$(printf '%s' "$CUR_USER" | html_escape)"
 ES_PASS="$(printf '%s' "$CUR_PASS" | html_escape)"
 ES_SERVER="$(printf '%s' "$CUR_SERVER" | html_escape)"
@@ -1879,6 +1942,10 @@ ES_5_KEY="$(printf '%s' "$CUR_5_KEY" | html_escape)"
 ES_PU="$(printf '%s' "$CUR_USER_CFG" | html_escape)"
 ES_PP="$(printf '%s' "$CUR_PASS_CFG" | html_escape)"
 ES_INSTALLED_VER="$(printf '%s' "$INSTALLED_VER" | html_escape)"
+ES_OTA_BUILD="$(printf '%s' "$OTA_BUILD" | html_escape)"
+ES_OTA_CODE="$(printf '%s' "${OTA_CODE:-}" | html_escape)"
+ES_OTA_AT="$(printf '%s' "${OTA_AT:-0}" | html_escape)"
+ES_OTA_HINT="$(printf '%s' "$OTA_HINT" | html_escape)"
 ES_PW_CURRENT_LABEL="$(printf '%s' "$PW_CURRENT_LABEL" | html_escape)"
 ES_SYS_WAN_IP="$(printf '%s' "$SYS_WAN_IP_SHOW" | html_escape)"
 ES_SYS_WAN_GW="$(printf '%s' "$SYS_WAN_GW_SHOW" | html_escape)"
@@ -2540,7 +2607,7 @@ input::placeholder{color:var(--dim)}
       <button class="primary" type="button" onclick="pact('passwall_update')">Обновить подписку</button>
       <button type="button" id="navBypassBtn" onclick="pact('${BYPASS_ACT}')" data-act="${BYPASS_ACT}">${BYPASS_BTN}</button>
       <div class="nav-sep"></div>
-      <button type="button" onclick="pact('router_update_now')">Обновить роутер</button>
+      <button type="button" onclick="otaOpenMenu()">Обновить роутер</button>
       <button type="button" onclick="advOpenMenu()">Расширенные настройки</button>
       <button type="button" onclick="menuClose();wizShow()">Мастер настройки</button>
       <div class="nav-sep"></div>
@@ -2552,7 +2619,6 @@ input::placeholder{color:var(--dim)}
 
   ${ERR:+<div class="err">${ES_ERR}</div>}
   ${MSG:+<div class="msg">${ES_MSG}</div>}
-  ${UPD_STATUS:+<div class="${UPD_COLOR}line">${ES_UPD}</div>}
   ${SUB_BANNER}
 
   <!-- ════ Главный layout: WAN + WiFi сверху, аккордеон снизу ════ -->
@@ -2890,19 +2956,27 @@ input::placeholder{color:var(--dim)}
 
       <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="update">
-          <span class="acc-title">🧩 Обновление роутера</span>
+          <span class="acc-title">🧩 Обновление прошивки</span>
           <span class="acc-arrow">▾</span>
         </div>
         <div class="acc-body" id="acc-update" style="display:none">
           <div class="acc-inner">
           <div class="card">
-                  <div class="info-row" style="border-bottom:0;padding-bottom:6px">
-                    <span class="ir-label">Установленная версия</span>
-                    <span class="ir-value" style="font-size:11px;font-family:monospace">${ES_INSTALLED_VER}</span>
+                  <div class="info-row">
+                    <span class="ir-label">Сборка прошивки</span>
+                    <span class="ir-value" id="ota-build" style="font-size:11px;font-family:monospace">${ES_OTA_BUILD}</span>
                   </div>
-                  <div class="info-hint">ℹ️ Автоматическое обновление отключено. Запускается только вручную этой кнопкой.</div>
+                  <div class="info-row" style="border-bottom:0;padding-bottom:6px">
+                    <span class="ir-label">Последняя проверка</span>
+                    <span class="ir-value" id="ota-status" style="font-size:11px" data-code="${ES_OTA_CODE}" data-at="${ES_OTA_AT}">—</span>
+                  </div>
+                  <div class="info-hint" id="ota-hint">${ES_OTA_HINT}</div>
                   <div class="row">
-                    <button class="btn secondary" style="flex:1" type="button" onclick="pact('router_update_now')">🔄 Обновить сейчас</button>
+                    <button class="btn secondary" style="flex:1" type="button" id="otaCheckBtn" ${OTA_DIS} onclick="pact('ota_check')">🔍 Проверить</button>
+                    <button class="btn primary" style="flex:1" type="button" id="otaNowBtn" ${OTA_DIS} onclick="otaUpdateNow()">⬇ Обновить сейчас</button>
+                  </div>
+                  <pre id="ota-log" style="display:none;margin:10px 0 0;padding:10px;border-radius:var(--rx);background:rgba(100,116,139,.07);border:1px solid rgba(100,116,139,.14);color:var(--mut);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto"></pre>
+                  <div class="row">
                     <button class="btn danger" type="button" onclick="pact('reboot')">↺ Перезагрузить роутер</button>
                   </div>
                 </div>
@@ -3063,7 +3137,6 @@ function pollStatusManual(){
 
 var LOADING_MSGS = {
   passwall_update:  ['🔄 Обновление подписки…',    'Загружаем серверы, это может занять 10–30 сек'],
-  router_update_now:['🧩 Обновление роутера…',     'Не закрывайте страницу'],
   restart_inet:     ['🔁 Перезапуск интернета…',   'Займёт несколько секунд'],
   bypass_enable:    ['🛡 Включение VPN…',       ''],
   bypass_disable:   ['🛡 Отключение VPN…',      ''],
@@ -3077,6 +3150,8 @@ var LOADING_MSGS = {
   guest_disable:    ['🏠 Отключение гостевой сети…',   ''],
   parental_save:    ['🔒 Сохранение контроля…',         'Применяем DNS и расписание'],
   parental_off:     ['🔒 Отключение контроля…',         ''],
+  ota_check:        ['🔍 Проверяем обновление…',        'Спрашиваем сервер о новой версии'],
+  ota_update_now:   ['🧩 Обновление прошивки…',         'Не выключайте питание роутера'],
 };
 function showLoading(action){
   var ov=g('loadingOverlay'),tx=g('ld-text'),sb=g('ld-sub');
@@ -3453,6 +3528,95 @@ function advOpenMenu(){
   window.location.href = location.pathname + '?page=adv';
 }
 
+// ── Обновление прошивки ──────────────────────────────────────
+// Карточка обновления живёт на странице расширенных настроек, туда
+// пункт меню и уводит. Метка ota=1 говорит обработчику загрузки, что
+// надо раскрыть карточку и начать опрос.
+function otaOpenMenu(){
+  menuClose();
+  window.location.href = location.pathname + '?page=adv&ota=1';
+}
+
+function otaUpdateNow(){
+  if(!confirm('Роутер скачает новую прошивку и перезагрузится.\nИнтернет пропадёт на 2–3 минуты. Продолжить?')) return;
+  pact('ota_update_now');
+}
+
+var OTA_STATUS_TXT = {
+  ok:               'обновление установлено',
+  no_update:        'стоит последняя версия',
+  update_available: 'есть версия новее',
+  not_in_rollout:   'версия есть, очередь роутера ещё не подошла',
+  no_image:         'в манифесте нет образа для этой модели',
+  download_failed:  'не удалось скачать образ',
+  sha_mismatch:     'контрольная сумма не совпала',
+  flash_failed:     'образ не подошёл этой модели'
+};
+
+function otaSetStatus(code, at){
+  var el = g('ota-status'); if(!el) return;
+  if(!code){ el.textContent = 'ещё не проверялось'; return; }
+  var txt = OTA_STATUS_TXT[code] || code;
+  var ts = parseInt(at, 10);
+  if(ts > 0) txt += ' · ' + new Date(ts*1000).toLocaleString('ru-RU');
+  el.textContent = txt;
+}
+
+function otaBusy(on){
+  var c = g('otaCheckBtn'), n = g('otaNowBtn');
+  if(c) c.disabled = !!on;
+  if(n) n.disabled = !!on;
+}
+
+// Скрипт запускается в фоне и лок ставит не мгновенно. Если бы опрос
+// прекращался по первому же running:false, панель успевала бы решить,
+// что всё кончилось, ещё до того как проверка началась. Поэтому после
+// нажатия кнопки опрашиваем несколько раз подряд в любом случае.
+var _otaTimer = null, _otaFails = 0, _otaWasRunning = false;
+var _otaMinPolls = 1, _otaPolls = 0;
+
+function otaPoll(){
+  if(_otaTimer){ clearTimeout(_otaTimer); _otaTimer = null; }
+  fetch('/cgi-bin/panel?action=api_ota', {credentials:'include', cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _otaFails = 0;
+      var b = g('ota-build');
+      if(b && d.build !== null && d.build !== undefined) b.textContent = d.build;
+      otaSetStatus(d.status, d.at);
+      var lg = g('ota-log');
+      if(lg && d.log){
+        lg.style.display = 'block';
+        lg.textContent = d.log;
+        lg.scrollTop = lg.scrollHeight;
+      }
+      _otaPolls++;
+      otaBusy(d.running);
+      if(d.running) _otaWasRunning = true;
+      if(d.running || _otaPolls < _otaMinPolls){
+        _otaTimer = setTimeout(otaPoll, 3000);
+      }
+    })
+    .catch(function(){
+      _otaFails++;
+      // Ответы кончились уже после старта установки: sysupgrade закрывает
+      // все сессии и начинает перезапись флеша.
+      if(_otaWasRunning && _otaFails >= 2){ otaRebooting(); return; }
+      if(_otaFails < 10) _otaTimer = setTimeout(otaPoll, 3000);
+    });
+}
+
+function otaRebooting(){
+  otaBusy(true);
+  var h = g('ota-hint');
+  if(h) h.textContent = '⏳ Роутер прошивается и перезагружается. Не выключайте питание — страница обновится сама.';
+  (function again(){
+    fetch(location.href.split('/cgi-bin')[0] + '/', {mode:'no-cors', cache:'no-store'})
+      .then(function(){ location.href = '/'; })
+      .catch(function(){ setTimeout(again, 3000); });
+  })();
+}
+
 function accToggle(hdr){
   var id = hdr.getAttribute('data-id');
   var body = document.getElementById('acc-' + id);
@@ -3724,6 +3888,19 @@ window.addEventListener('load', function(){
     cards[i].style.animationFillMode = 'both';
   }
   initSsidFields();
+  // Статус обновления отрисован сервером в data-атрибутах — расшифровываем
+  // теми же строками, что потом придут из опроса.
+  var _otaEl = g('ota-status');
+  if(_otaEl) otaSetStatus(_otaEl.getAttribute('data-code'), _otaEl.getAttribute('data-at'));
+  if(/[?&]ota=1/.test(location.search)){
+    var _uh = document.querySelector('.acc-hdr[data-id="update"]');
+    if(_uh){
+      if(!_uh.classList.contains('open')) accToggle(_uh);
+      setTimeout(function(){ _uh.scrollIntoView({behavior:'smooth', block:'center'}); }, 150);
+    }
+    _otaMinPolls = 6;
+    otaPoll();
+  }
   // Bypass wait: если только что нажали включить/выключить VPN — ждём запуска сервиса
   var _bw = ((location.search.match(/[?&]bw=(\d+)/) || [0,0])[1] | 0);
   var _nc_param = (location.search.match(/[?&]nc=([^&]*)/) || ['',''])[1];

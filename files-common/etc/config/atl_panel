@@ -1,7 +1,5 @@
 config atl_panel 'main'
   option user 'admin'
   option pass 'admin'
-  option upd_version_url 'https://raw.githubusercontent.com5/UnionUnllimited/routeratl/refs/heads/main/version.txt'
-  option upd_script_url 'https://raw.githubusercontent.com5/UnionUnllimited/routeratl/refs/heads/main/update.sh'
   option ota_url ''
   option youtube_mode 'main'

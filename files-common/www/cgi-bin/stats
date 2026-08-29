@@ -36,8 +36,8 @@ frpc_running=false; pgrep -f frpc >/dev/null 2>&1 && frpc_running=true
 # нём мусор — отдаём null: "не сообщил" и "нулевая сборка" это разное.
 titan_build=$(cat /etc/titan_version 2>/dev/null | tr -dc '0-9')
 [ -n "$titan_build" ] || titan_build=null
-# Итог последнего похода за манифестом: ok, no_update, not_in_rollout,
-# no_image, download_failed, sha_mismatch, flash_failed.
+# Итог последнего похода за манифестом: ok, no_update, update_available,
+# not_in_rollout, no_image, download_failed, sha_mismatch, flash_failed.
 ota_status=$(awk '{print $1}' /etc/titan_ota_status 2>/dev/null)
 [ -n "$ota_status" ] && ota_status="\"$ota_status\"" || ota_status=null
 ota_at=$(awk '{print $2}' /etc/titan_ota_status 2>/dev/null | tr -dc '0-9')
