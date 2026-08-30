@@ -80,46 +80,69 @@ fi
 # перепутаны местами — домены в поле для адресов и наоборот.
 # Менять надо оба разом: при режиме proxy с новыми списками весь
 # российский трафик ушёл бы в VPN.
+# Адреса списков задаёт блок ниже — здесь только режим. Разъезжаться им
+# нельзя: при proxy с этими списками весь российский трафик ушёл бы в VPN.
 if [ "$(uci -q get passwall.@global[0].chn_list 2>/dev/null)" = "proxy" ]; then
   uci -q set passwall.@global[0].chn_list='direct'
-  uci -q delete passwall.@global_rules[0].chnroute_url
-  uci -q delete passwall.@global_rules[0].chnlist_url
-  uci -q add_list passwall.@global_rules[0].chnroute_url='https://vbotrouters.titanvps.click/lists/ip.lst'
-  uci -q add_list passwall.@global_rules[0].chnlist_url='https://vbotrouters.titanvps.click/lists/domains.lst'
   uci -q commit passwall
-  rm -f /usr/share/passwall/rules/chnlist /usr/share/passwall/rules/chnroute 2>/dev/null
-  ok "PassWall: chn_list в direct, адреса списков обновлены"
+  ok "PassWall: chn_list переведён в direct"
 fi
 
-# ── Списки тянем только со своего зеркала ────────────────────────
-# Вторым адресом стоял raw.githubusercontent. GitHub замедлен, и когда
-# он отвечает по минуте, обновление списка целиком уходит в таймаут —
-# роутер остаётся на старом наборе. Оставляем один источник.
+# ── Три списка, все со своего зеркала ────────────────────────────
+# Раскладка такая:
+#   chnlist  = direct-domains.lst — российские домены мимо туннеля
+#   chnroute = direct-ip.lst      — российские подсети мимо туннеля
+#   gfwlist  = proxy-domains.lst  — наше, чему туннель нужен вопреки
+#
+# gfwlist переиспользован не по названию: это единственный список
+# PassWall, который тянется по URL и всегда уходит в туннель, у него
+# нет переключателя direct/proxy. Правила применяются раньше chnlist,
+# поэтому домен на .ru из этого файла перебьёт общий direct.
+#
+# Адрес на raw.githubusercontent убран: GitHub замедлен, и когда он
+# отвечает по минуте, обновление списка целиком уходит в таймаут.
 #
 # Заодно выключаем Direct List: это отдельный от chnlist набор
 # (/usr/share/passwall/rules/direct_host), в нём лежит один router.test,
-# пользы никакой, а его правила применяются раньше chnlist.
+# пользы никакой, а его правила идут ещё раньше gfwlist.
 #
 # /etc/config/passwall переживает sysupgrade, поэтому из образа правка
-# до работающих роутеров не доедет — чистим здесь.
+# до работающих роутеров не доедет — приводим к нужному виду здесь.
 # Установщик идёт под set -e, а uci на отсутствующей секции возвращает
 # ошибку — отсюда || true на каждой записи.
+LISTS_BASE="https://vbotrouters.titanvps.click/lists"
 LISTS_FIXED=0
-if uci -q get passwall.@global_rules[0].chnroute_url 2>/dev/null | grep -q githubusercontent; then
-  uci -q delete passwall.@global_rules[0].chnroute_url || true
-  uci -q add_list passwall.@global_rules[0].chnroute_url='https://vbotrouters.titanvps.click/lists/ip.lst' || true
-  LISTS_FIXED=1
-fi
-if uci -q get passwall.@global_rules[0].chnlist_url 2>/dev/null | grep -q githubusercontent; then
-  uci -q delete passwall.@global_rules[0].chnlist_url || true
-  uci -q add_list passwall.@global_rules[0].chnlist_url='https://vbotrouters.titanvps.click/lists/domains.lst' || true
-  LISTS_FIXED=1
-fi
-if [ -n "$(uci -q get passwall.@global[0].chn_list 2>/dev/null)" ] \
-   && [ "$(uci -q get passwall.@global[0].use_direct_list 2>/dev/null)" != "0" ]; then
-  uci -q set passwall.@global[0].use_direct_list='0' || true
-  LISTS_FIXED=1
-fi
+URLS_FIXED=0
+for _pair in \
+  "chnlist_url=$LISTS_BASE/direct-domains.lst" \
+  "chnroute_url=$LISTS_BASE/direct-ip.lst" \
+  "gfwlist_url=$LISTS_BASE/proxy-domains.lst"
+do
+  _opt="${_pair%%=*}"
+  _want="${_pair#*=}"
+  _cur="$(uci -q get passwall.@global_rules[0].$_opt 2>/dev/null || true)"
+  if [ "$_cur" != "$_want" ]; then
+    uci -q delete passwall.@global_rules[0].$_opt 2>/dev/null || true
+    uci -q add_list passwall.@global_rules[0].$_opt="$_want" || true
+    LISTS_FIXED=1
+    URLS_FIXED=1
+  fi
+done
+
+# Флаги: gfwlist качаем и применяем, Direct List выключен.
+for _pair in \
+  "global_rules:gfwlist_update:1" \
+  "global:use_gfw_list:1" \
+  "global:use_direct_list:0"
+do
+  _sec="@$(echo "$_pair" | cut -d: -f1)[0]"
+  _opt="$(echo "$_pair" | cut -d: -f2)"
+  _want="$(echo "$_pair" | cut -d: -f3)"
+  if [ "$(uci -q get passwall.$_sec.$_opt 2>/dev/null || true)" != "$_want" ]; then
+    uci -q set passwall.$_sec.$_opt="$_want" || true
+    LISTS_FIXED=1
+  fi
+done
 
 # Автообновление списков: Loop Mode раз в 12 часов средствами самого
 # PassWall. В конфиге лежали auto_update, week_update и interval_update —
@@ -137,11 +160,25 @@ if [ "$(uci -q get passwall.@global_rules[0].update_week_mode 2>/dev/null)" != "
 fi
 if [ "$LISTS_FIXED" = 1 ]; then
   uci -q commit passwall || true
-  # Скачанные списки НЕ удаляем. Набор тот же, просто источник теперь
-  # один, и старый файл лучше пустого: если зеркало не ответит, роутер
-  # доживёт на нём до следующей попытки, а не отправит весь российский
-  # трафик в туннель. Перезапишет его titan_lists_update.sh при подъёме WAN.
-  ok "PassWall: своё зеркало, Direct List выкл., обновление раз в 12 часов"
+  ok "PassWall: три списка со своего зеркала, обновление раз в 12 часов"
+fi
+
+# Сменился адрес — значит лежащий рядом скачанный файл набран из другого
+# источника, и содержимое теперь просто неверное. На стенде так и вышло:
+# планировщик был мёртв из-за старых имён опций, обновление ни разу не
+# отработало, и в chnlist остались дефолтные китайские домены — 112 тысяч
+# штук вместо тысячи наших. Мало того что маршрутизация получалась
+# обратной, так каждый перезапуск PassWall ещё и перемалывал этот том.
+#
+# Поэтому при смене адреса чистим. Окно без списка неопасно: до первой
+# закачки всё уходит в туннель по tcp_proxy_mode, то есть работает, просто
+# без прямых исключений. Заберёт их titan_lists_update.sh на подъёме WAN,
+# он там же и дожидается ответа зеркала.
+if [ "$URLS_FIXED" = 1 ]; then
+  rm -f /usr/share/passwall/rules/chnlist \
+        /usr/share/passwall/rules/chnroute \
+        /usr/share/passwall/rules/gfwlist 2>/dev/null || true
+  info "Списки прежнего источника удалены, скачаются заново"
 fi
 
 # Скрипт обновления списков при подъёме WAN — расписание раз в 12 часов

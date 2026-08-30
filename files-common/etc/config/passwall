@@ -5,7 +5,11 @@ config global
         option dns_mode 'xray'
         option remote_dns '8.8.8.8'
         option dns_redirect '1'
-        option use_gfw_list '0'
+        # gfwlist переиспользован под своё: это единственный список
+        # PassWall, который тянется по URL и всегда уходит в туннель.
+        # В нём наши домены на .ru, которым туннель нужен вопреки тому,
+        # что весь остальной .ru идёт напрямую через chnlist.
+        option use_gfw_list '1'
         option use_direct_list '0'
         option chn_list 'direct'
         option tcp_proxy_mode 'proxy'
@@ -68,17 +72,17 @@ config global_rules
         option chnlist_update '1'
         option chnroute_update '1'
         option chnroute6_update '0'
-        option gfwlist_update '0'
+        option gfwlist_update '1'
         option geosite_update '0'
         option geoip_update '0'
-        list gfwlist_url 'https://cdn.jsdelivr.net/gh/Loyalsoldier/v2ray-rules-dat@release/gfw.txt'
+        list gfwlist_url 'https://vbotrouters.titanvps.click/lists/proxy-domains.lst'
         option v2ray_location_asset '/usr/share/v2ray/'
         option geoip_url 'https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat'
         option geosite_url 'https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat'
         option geo2rule '0'
         option enable_geoview '0'
-        list chnroute_url 'https://vbotrouters.titanvps.click/lists/ip.lst'
-        list chnlist_url 'https://vbotrouters.titanvps.click/lists/domains.lst'
+        list chnroute_url 'https://vbotrouters.titanvps.click/lists/direct-ip.lst'
+        list chnlist_url 'https://vbotrouters.titanvps.click/lists/direct-domains.lst'
 
 config global_app
         option sing_box_file '/usr/bin/sing-box'
