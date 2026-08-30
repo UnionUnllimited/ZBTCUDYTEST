@@ -53,15 +53,19 @@ uci -q delete dhcp.guest
 rm -f /etc/dnsmasq.d/guest-parental.conf /etc/dnsmasq.d/atl_parental.conf 2>/dev/null
 rm -f /etc/crontabs/atl_parental /etc/hotplug.d/iface/30-guest-bypass 2>/dev/null
 
-# ── Wi-Fi: открытые сети, как после первой прошивки ──────────────
+# ── Wi-Fi: заводское состояние, как после первой прошивки ────────
+# Пароль, а не открытая сеть. Открытая в паре с вычислимым по MAC
+# root-паролем означала, что любой в радиусе действия получал полный
+# доступ к роутеру, пока клиент не дошёл до мастера настройки.
+WIFI_KEY='11111118'
 uci -q set wireless.default_radio0.ssid='Titan-2.4'
-uci -q set wireless.default_radio0.encryption='none'
-uci -q delete wireless.default_radio0.key
+uci -q set wireless.default_radio0.encryption='psk2'
+uci -q set wireless.default_radio0.key="$WIFI_KEY"
 uci -q set wireless.default_radio0.disabled='0'
 if uci -q get wireless.radio1.type >/dev/null 2>&1; then
   uci -q set wireless.default_radio1.ssid='Titan-5'
-  uci -q set wireless.default_radio1.encryption='none'
-  uci -q delete wireless.default_radio1.key
+  uci -q set wireless.default_radio1.encryption='psk2'
+  uci -q set wireless.default_radio1.key="$WIFI_KEY"
   uci -q set wireless.default_radio1.disabled='0'
 fi
 

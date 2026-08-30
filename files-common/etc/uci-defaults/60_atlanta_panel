@@ -25,7 +25,10 @@ LAN_IP="192.168.14.1"
 LAN_MASK="255.255.255.0"
 WIFI_SSID_24="Titan-2.4"
 WIFI_SSID_5="Titan-5"
-# При первой прошивке Wi-Fi открытый (без пароля) — клиент задаёт пароль в мастере
+# Заводской пароль Wi-Fi. Одно значение на первую прошивку и на сброс
+# кнопкой Reset — обработчик /etc/hotplug.d/button/00-atlanta ставит его же.
+# Меняете здесь — меняйте и там, и в www/instruction.html.
+WIFI_KEY="11111118"
 
 # ── Чистая прошивка или обновление ──────────────────────────────
 # Маркер перечислен в /etc/sysupgrade.conf, поэтому переживает
@@ -365,9 +368,13 @@ if ! uci -q get wireless.default_radio0 >/dev/null 2>&1; then
   uci -q set wireless.default_radio0.mode='ap'
 fi
 uci -q set wireless.default_radio0.ssid="$WIFI_SSID_24"
-# Первая прошивка — открытая сеть без пароля, клиент задаёт пароль в мастере
-uci -q set wireless.default_radio0.encryption='none'
-uci -q delete wireless.default_radio0.key 2>/dev/null || true
+# Первая прошивка — сеть с заводским паролем, клиент меняет его в мастере.
+# Раньше здесь была открытая сеть. В паре с root-паролем, вычислимым из
+# MAC (соль лежит в публичном репозитории, а MAC виден в эфире как BSSID),
+# это означало полный доступ к роутеру для любого в радиусе действия —
+# ровно до того момента, пока клиент не дойдёт до мастера настройки.
+uci -q set wireless.default_radio0.encryption='psk2'
+uci -q set wireless.default_radio0.key="$WIFI_KEY" 2>/dev/null || true
 uci -q set wireless.default_radio0.disabled='0' 2>/dev/null || true
 
 if uci -q get wireless.radio1.type >/dev/null 2>&1; then
@@ -378,8 +385,8 @@ if uci -q get wireless.radio1.type >/dev/null 2>&1; then
     uci -q set wireless.default_radio1.mode='ap'
   fi
   uci -q set wireless.default_radio1.ssid="$WIFI_SSID_5"
-  uci -q set wireless.default_radio1.encryption='none'
-  uci -q delete wireless.default_radio1.key 2>/dev/null || true
+  uci -q set wireless.default_radio1.encryption='psk2'
+  uci -q set wireless.default_radio1.key="$WIFI_KEY" 2>/dev/null || true
   uci -q set wireless.default_radio1.disabled='0' 2>/dev/null || true
 fi
 uci -q commit wireless 2>/dev/null || true
@@ -446,8 +453,8 @@ info "dnsmasq перезапущен (titan.lan активен)"
 # ── [+] Кнопка Reset ──────────────────────────────────────────
 # Сам обработчик поставляется образом: files-common/etc/hotplug.d/button.
 # Раньше он ещё и дублировался heredoc'ом прямо здесь, копии разошлись —
-# поставляемая обещала сброс Wi-Fi на 11111111, встроенная ставила
-# открытую сеть. Держим логику в одном файле, тут только проверяем.
+# поставляемая обещала один пароль, встроенная ставила открытую сеть.
+# Держим логику в одном файле, тут только проверяем наличие.
 step "[+] Проверяем обработчик кнопки Reset"
 mkdir -p /etc/hotplug.d/button
 if [ -s /etc/hotplug.d/button/00-atlanta ]; then
@@ -530,7 +537,7 @@ printf "${CG}║${C0}  Пароль:        ${CB}admin${C0}%*s${CG}║${C0}\n" 1
 printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
 printf "${CG}║${C0}  Wi-Fi 2.4 ГГц: ${CB}%s${C0}%*s${CG}║${C0}\n" "$WIFI_SSID_24" "$((25 - ${#WIFI_SSID_24}))" ""
 printf "${CG}║${C0}  Wi-Fi 5 ГГц:   ${CB}%s${C0}%*s${CG}║${C0}\n" "$WIFI_SSID_5" "$((26 - ${#WIFI_SSID_5}))" ""
-printf "${CG}║${C0}  Пароль Wi-Fi:  ${CB}без пароля${C0}%*s${CG}║${C0}\n" 15 ""
+printf "${CG}║${C0}  Пароль Wi-Fi:  ${CB}%s${C0}%*s${CG}║${C0}\n" "$WIFI_KEY" "$((25 - ${#WIFI_KEY}))" ""
 printf "${CG}╠══════════════════════════════════════════╣${C0}\n"
 printf "${CG}║${C0}  Адрес (hostname): ${CB}http://titan.lan/${C0}%*s${CG}║${C0}\n" 15 ""
 printf "${CG}║${C0}  MAC страница:      ${CB}http://titan.lan/my-mac/${C0}%*s${CG}║${C0}\n" 6 ""
