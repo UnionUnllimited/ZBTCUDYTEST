@@ -3,6 +3,22 @@
 ::1     localhost ip6-localhost ip6-loopback
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
+# FRP-сервер удалённого доступа.
+#
+# Провайдеры блокируют pandora361.online и отдают на него 0.0.0.0 —
+# 30.08.2026 роутер d4:0d:ab:03:4b:ce потерял связь именно так, в логе
+# frpc «dial tcp 0.0.0.0:8443». DNS при этом был полностью исправен,
+# обычные сайты резолвились, а 8.8.8.8 на тот же домен отвечал верно.
+#
+# Отправить домен в туннель через proxy-domains.lst нельзя: тогда его
+# резолв зависит от туннеля, и упавший туннель отнимает удалённый доступ,
+# которым его чинят.
+#
+# Эта запись нужна для первых минут после загрузки. Дальше её обновляет
+# frpc_watchdog.sh, спрашивая публичные резолверы напрямую, так что смену
+# IP сервера роутеры подхватят сами в течение пяти минут.
+103.27.157.204 frp.pandora361.online
+
 #githubusercontent.com
 185.199.109.133 raw.githubusercontent.com release-assets.githubusercontent.com
 185.199.108.133 private-user-images.githubusercontent.com gist.githubusercontent.com avatars.githubusercontent.com
