@@ -343,28 +343,20 @@ bypass_state(){
   [ "$(uci -q get passwall.@global[0].enabled 2>/dev/null)" = "1" ] && echo "on" || echo "off"
 }
 
-# VPN watchdog — крон каждые 10 минут. on=добавить, off=убрать
-# Минута смещена: watchdog'и не должны просыпаться в одну секунду, иначе
-# на общий сбой они реагируют втроём одновременно. Расписание обязано
-# совпадать с тем, что прописывает uci-defaults/60_atlanta_panel.
-vpn_watchdog_cron(){
-  CRON_F="/etc/crontabs/root"
-  [ -f "$CRON_F" ] || touch "$CRON_F" 2>/dev/null || true
-  # Всегда убираем старую строку, чтобы не было дублей
-  grep -v "vpn_watchdog.sh" "$CRON_F" > /tmp/atl_wd_cron.$$ 2>/dev/null || true
-  if [ "$1" = "on" ]; then
-    echo "5-59/10 * * * * /usr/bin/vpn_watchdog.sh" >> /tmp/atl_wd_cron.$$
-  else
-    # Добиваем уже запущенный watchdog, иначе он включит VPN обратно
-    pkill -f /usr/bin/vpn_watchdog.sh 2>/dev/null || true
-  fi
-  mv /tmp/atl_wd_cron.$$ "$CRON_F" 2>/dev/null || rm -f /tmp/atl_wd_cron.$$ 2>/dev/null || true
-  /etc/init.d/cron restart >/dev/null 2>&1 || true
-}
+# vpn_watchdog убран вместе со своим управлением из панели.
+#
+# Он перезапускал весь PassWall, если не видел процесса xray или если
+# запрос через socks не проходил. Обе проверки дублировали штатное и
+# делали это грубее: процессы стережёт сам PassWall — monitor.sh при
+# start_daemon=1 поднимает конкретный упавший процесс, а не всё разом;
+# связность узлов проверяет балансировщик, у него probeInterval 2m и
+# expected 2, мёртвые узлы он обходит сам.
+#
+# Наш же перезапуск был самой дорогой операцией на роутере и 29.08.2026
+# сложился в лавину, положившую железку.
 
 bypass_enable_all(){
-  vpn_watchdog_cron on
-  # Главный флаг passwall — его проверяют watchdog-скрипты
+  # Главный флаг passwall
   uci -q set passwall.@global[0].enabled='1' 2>/dev/null || true
   uci -q commit passwall 2>/dev/null || true
   {
@@ -384,8 +376,7 @@ bypass_enable_all(){
 }
 
 bypass_disable_all(){
-  vpn_watchdog_cron off
-  # Снимаем главный флаг passwall — иначе watchdog поднимет VPN обратно
+  # Снимаем главный флаг passwall
   uci -q set passwall.@global[0].enabled='0' 2>/dev/null || true
   uci -q commit passwall 2>/dev/null || true
   {

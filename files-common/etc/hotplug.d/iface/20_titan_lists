@@ -1,9 +1,0 @@
-#!/bin/sh
-# Расписание раз в 12 часов держит сам PassWall (Loop Mode), но его
-# счётчик стартует с нуля и сбрасывается при каждом перезапуске
-# passwall — а 98-passwall перезапускает его на каждом ifup. Здесь
-# добираем то, что из-за этого может не наступить никогда.
-[ "$ACTION" = "ifup" ] || exit 0
-[ "$INTERFACE" = "wan" ] || exit 0
-[ -x /usr/bin/titan_lists_update.sh ] || exit 0
-/usr/bin/titan_lists_update.sh ifup >/dev/null 2>&1 &

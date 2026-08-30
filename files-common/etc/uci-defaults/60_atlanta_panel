@@ -214,8 +214,8 @@ fi
 #
 # Поэтому при смене адреса чистим. Окно без списка неопасно: до первой
 # закачки всё уходит в туннель по tcp_proxy_mode, то есть работает, просто
-# без прямых исключений. Заберёт их titan_lists_update.sh на подъёме WAN,
-# он там же и дожидается ответа зеркала.
+# без прямых исключений. Заберёт их штатное расписание PassWall — Loop
+# Mode раз в 12 часов, см. update_week_mode выше.
 if [ "$URLS_FIXED" = 1 ]; then
   rm -f /usr/share/passwall/rules/chnlist \
         /usr/share/passwall/rules/chnroute \
@@ -223,20 +223,22 @@ if [ "$URLS_FIXED" = 1 ]; then
   info "Списки прежнего источника удалены, скачаются заново"
 fi
 
-# Скрипт обновления списков при подъёме WAN — расписание раз в 12 часов
-# держит сам PassWall, здесь только обработчик hotplug из образа.
-step "[+] Проверяем обновление списков маршрутизации"
-if [ -s /usr/bin/titan_lists_update.sh ]; then
-  chmod 0755 /usr/bin/titan_lists_update.sh
-  ok "titan_lists_update.sh на месте"
-else
-  info "ВНИМАНИЕ: /usr/bin/titan_lists_update.sh отсутствует — образ собран неполно"
-fi
-if [ -s /etc/hotplug.d/iface/20_titan_lists ]; then
-  chmod 0755 /etc/hotplug.d/iface/20_titan_lists
-else
-  info "ВНИМАНИЕ: hotplug.d/iface/20_titan_lists отсутствует"
-fi
+# Убираем следы собственных механизмов, замещённых штатными.
+#
+# titan_lists_update.sh с хотплагом на ifup обновлял списки при подъёме
+# WAN. Именно он ломал загрузку: rule_update.lua в конце делает
+# uci_save(true, true), это перезапуск PassWall, и приходился он ровно
+# на его старт. Расписание раз в 12 часов PassWall держит сам.
+#
+# vpn_watchdog.sh перезапускал весь PassWall, не увидев процесса xray
+# или не получив ответа через socks. Первое делает monitor.sh самого
+# PassWall, и делает точечно; второе — балансировщик с probeInterval 2m.
+#
+# Сами файлы приходят из образа и исчезают вместе с ним, но /etc
+# переживает sysupgrade — оттуда чистим руками.
+rm -f /etc/hotplug.d/iface/20_titan_lists 2>/dev/null || true
+rm -f /usr/bin/titan_lists_update.sh /usr/bin/vpn_watchdog.sh 2>/dev/null || true
+pkill -f /usr/bin/vpn_watchdog.sh 2>/dev/null || true
 
 # Общая точка перезапуска PassWall и ловушка всплесков нагрузки.
 step "[+] Проверяем защиту от лавины перезапусков"
@@ -455,11 +457,10 @@ mv /tmp/atl_cron_tmp /etc/crontabs/root
 # /etc/crontabs/root сохраняется при sysupgrade, и новые строки из
 # образа туда не попадают. Дописываем недостающие, не трогая чужие.
 # Минуты у watchdog'ов разнесены намеренно и нигде не пересекаются:
-#   vpn :05 :15 :25 …   dns :01 :06 :11 …   frp :03 :08 :13 …
+#   dns :01 :06 :11 …   frp :03 :08 :13 …
 # Раньше стояло */10 и */5 — все трое просыпались в одну секунду и на
 # общий сбой отвечали втроём разом.
 for job in \
-  "5-59/10 * * * * /usr/bin/vpn_watchdog.sh" \
   "1-59/5 * * * * /usr/bin/dns_watchdog.sh" \
   "3-59/5 * * * * /usr/bin/frpc_watchdog.sh" \
   "30 4 * * * /usr/bin/titan_ota.sh" \
