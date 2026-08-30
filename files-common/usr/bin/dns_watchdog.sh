@@ -54,9 +54,30 @@ if ! pgrep -f chinadns-ng >/dev/null 2>&1; then
     exit 0
 fi
 
-# ── ответ резолвера ──────────────────────────────────────────────
-DNS_OK=$(nslookup google.com 127.0.0.1 2>/dev/null | grep -c Address)
-if [ "$DNS_OK" -eq 0 ]; then
+# ── Путь клиента ─────────────────────────────────────────────────
+# Резолв с самого роутера идёт напрямую в dnsmasq на 127.0.0.1 и живёт
+# своей жизнью. У клиентов путь другой: их запрос заворачивается в
+# PassWall через хук-цепочки таблицы inet passwall. Если таблица
+# недостроена, роутер резолвит прекрасно, а вся сеть сидит без DNS —
+# именно так и было 30.08.2026, и эта проверка тогда ничего не заметила.
+if nft list table inet passwall >/dev/null 2>&1; then
+    for _chain in dstnat mangle_prerouting mangle_output nat_output; do
+        nft list chain inet passwall "$_chain" >/dev/null 2>&1 || {
+            logger -t "$LOG_TAG" "нет цепочки $_chain — клиенты без DNS"
+            pw_restart "dns_watchdog: недостроена таблица inet passwall"
+            exit 0
+        }
+    done
+fi
+
+# ── Ответ резолвера ──────────────────────────────────────────────
+# Считать все строки Address нельзя: первая из них — адрес самого
+# сервера, она печатается всегда, в том числе когда имя не разрешилось.
+# С таким условием проверка не срабатывала ни разу за всё время.
+# Настоящий ответ идёт после строки Name.
+DNS_ANS="$(nslookup google.com 127.0.0.1 2>/dev/null \
+    | awk '/^Name:/{seen=1} seen && /^Address/{print $NF}' | head -n1)"
+if [ -z "${DNS_ANS:-}" ]; then
     logger -t "$LOG_TAG" "DNS не отвечает — перезапускаем dnsmasq"
     $TMO ${TMO:+60} /etc/init.d/dnsmasq restart
 fi

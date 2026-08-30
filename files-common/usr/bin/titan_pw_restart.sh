@@ -56,18 +56,32 @@ trap 'rm -f "$LOCK"' EXIT INT TERM
 echo "$NOW" > "$STAMP"
 
 # ── Половинчатая таблица nftables ────────────────────────────────
-# Если app.sh упал на полпути, таблица inet passwall остаётся созданной,
-# но без цепочек. Дальше каждый перезапуск сыплет «Could not process
-# rule: No such file or directory», правила не встают, и вручную это
-# лечится только сносом таблицы. Проверяем и сносим сами: firewall
-# соберёт её заново. У живой таблицы цепочек больше десятка.
+# Если app.sh упал на полпути, таблица inet passwall остаётся, но без
+# хук-цепочек: правила вроде PSW_DNS созданы, а заходить в них нечему —
+# счётчики стоят на нуле, и клиенты остаются без DNS. Дальше каждый
+# перезапуск сыплет «Could not process rule: No such file or directory»,
+# само это не выправляется, лечится только сносом таблицы.
+#
+# Считать общее число цепочек нельзя — на этом я и обжёгся. Порог стоял
+# «меньше пяти», а живьём 30.08.2026 сломанная таблица оказалась с девятью
+# цепочками из тринадцати: PSW_* на месте, нет ровно четырёх хуковых.
+# Проверка не срабатывала, и защита молчала при полностью мёртвом DNS.
+#
+# Поэтому проверяем именно те четыре, через которые трафик попадает в
+# таблицу. Нет хотя бы одной — таблица нерабочая, каким бы ни был счёт.
 if nft list table inet passwall >/dev/null 2>&1; then
-    CHAINS="$(nft list table inet passwall 2>/dev/null | grep -c '^[[:space:]]*chain')"
-    case "${CHAINS:-}" in ""|*[!0-9]*) CHAINS=0 ;; esac
-    if [ "$CHAINS" -lt 5 ]; then
-        log "таблица inet passwall недостроена ($CHAINS цепочек) — сносим"
+    PW_TABLE_BROKEN=0
+    for _chain in dstnat mangle_prerouting mangle_output nat_output; do
+        nft list chain inet passwall "$_chain" >/dev/null 2>&1 || {
+            PW_TABLE_BROKEN=1
+            log "в таблице inet passwall нет цепочки $_chain"
+        }
+    done
+    if [ "$PW_TABLE_BROKEN" = 1 ]; then
+        log "таблица inet passwall недостроена — сносим, firewall соберёт заново"
         nft delete table inet passwall 2>/dev/null || true
         /etc/init.d/firewall restart >/dev/null 2>&1 || true
+        sleep 5
     fi
 fi
 
