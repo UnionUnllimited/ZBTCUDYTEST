@@ -311,12 +311,18 @@ pw_nodes_list(){
 pw_apply_node(){
   node="$1"
   [ -n "$node" ] || return 1
-  # Пишем во все три имени: какое читает установленный PassWall, зависит
-  # от его версии, а лишние опции безвредны — его же миграция уберёт их
-  # на ближайшей загрузке.
+  # Пишем только node, а старые имена вычищаем.
+  #
+  # Раньше сюда же писались tcp_node и udp_node — «вдруг версия старая,
+  # лишнее безвредно». Безвредным не оказалось: 26.8.26 эти имена не
+  # читает и убирает своей миграцией только на загрузке, а панель
+  # воссоздавала их при каждой смене сервера. Стоит клиенту переключиться
+  # в LuCI, который пишет только node, — и в конфиге висят два мёртвых
+  # имени с прежним узлом. 30.08.2026 на этом расхождении ушло полдня:
+  # node показывал балансер, tcp_node — Польшу, и было неясно, кто прав.
   uci -q set passwall.@global[0].node="$node" 2>/dev/null || true
-  uci -q set passwall.@global[0].tcp_node="$node" 2>/dev/null || true
-  uci -q set passwall.@global[0].udp_node="$node" 2>/dev/null || true
+  uci -q delete passwall.@global[0].tcp_node 2>/dev/null || true
+  uci -q delete passwall.@global[0].udp_node 2>/dev/null || true
   uci -q commit passwall >/dev/null 2>&1 || true
   # Запускаем перезапуск в фоне — CGI сразу возвращает redirect без ожидания.
   # Здесь идём мимо titan_pw_restart.sh намеренно: смена сервера — это
