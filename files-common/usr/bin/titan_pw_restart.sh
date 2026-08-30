@@ -99,8 +99,22 @@ if nft list table inet passwall >/dev/null 2>&1; then
         }
     done
     if [ "$PW_TABLE_BROKEN" = 1 ]; then
-        log "таблица inet passwall недостроена — сносим, firewall соберёт заново"
+        log "таблица inet passwall недостроена — сносим вместе с кэшем"
         nft delete table inet passwall 2>/dev/null || true
+
+        # Одной таблицы мало. gen_include снимает слепок таблицы в
+        # PSW_RULE.nft, а /var/etc/passwall.include при каждой перезагрузке
+        # firewall этот слепок применяет. Слепок, снятый со сломанной
+        # таблицы, воспроизводит поломку бесконечно: сносишь таблицу,
+        # перезапускаешь firewall — и он аккуратно возвращает те же девять
+        # цепочек. 30.08.2026 из-за этого починка не срабатывала вообще,
+        # пока не убрали include руками. PassWall создаёт оба файла заново
+        # при старте, терять тут нечего.
+        rm -f /tmp/etc/passwall/PSW_RULE.nft 2>/dev/null || true
+        FWI="$(uci -q get firewall.passwall.path 2>/dev/null || true)"
+        [ -n "${FWI:-}" ] && rm -f "$FWI" 2>/dev/null
+        rm -f /var/etc/passwall.include 2>/dev/null || true
+
         /etc/init.d/firewall restart >/dev/null 2>&1 || true
         sleep 5
     fi
