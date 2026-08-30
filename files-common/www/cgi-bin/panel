@@ -1286,7 +1286,7 @@ if [ "${GET_ACT:-}" = "api_ping_nodes" ]; then
   done < "$_pdir/seclist.txt" > "$_pdir/nodes.txt" 2>/dev/null || true
   # Последовательно и с дедлайном. Узлы, до которых не успели, отдаём
   # как -3 — панель покажет их без метки, а не соврёт про «мёртв».
-  _deadline=$(( $(date +%s) + 45 ))
+  _deadline=$(( $(date +%s) + 30 ))
   while IFS="$(printf '\t')" read -r _num _sec; do
     [ -n "$_num" ] && [ -n "$_sec" ] || continue
     _nf="$_pdir/r_$_num"

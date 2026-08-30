@@ -73,13 +73,6 @@ if uci -q get atl_panel.main.upd_script_url >/dev/null 2>&1 \
   ok "Убраны адреса старого ручного обновления"
 fi
 
-# Списки chnlist и chnroute сменили смысл: раньше в них лежало то, что
-# гнать в туннель, теперь — российское, которое должно идти напрямую.
-# Поэтому chn_list переводится с proxy на direct, и одновременно
-# меняются адреса: старые указывали на другой набор и вдобавок были
-# перепутаны местами — домены в поле для адресов и наоборот.
-# Менять надо оба разом: при режиме proxy с новыми списками весь
-# российский трафик ушёл бы в VPN.
 # Адреса списков задаёт блок ниже — здесь только режим. Разъезжаться им
 # нельзя: при proxy с этими списками весь российский трафик ушёл бы в VPN.
 if [ "$(uci -q get passwall.@global[0].chn_list 2>/dev/null)" = "proxy" ]; then
@@ -446,7 +439,7 @@ for job in \
   "5-59/10 * * * * /usr/bin/vpn_watchdog.sh" \
   "1-59/5 * * * * /usr/bin/dns_watchdog.sh" \
   "3-59/5 * * * * /usr/bin/frpc_watchdog.sh" \
-  "30 4 * * * /usr/bin/titan_ota.sh" \
+  "30 4 * * * /usr/bin/titan_ota.sh" \n  "* * * * * /usr/bin/titan_pw_check.sh" \
   "* * * * * /usr/bin/titan_loadwatch.sh"
 do
   bin="${job##* }"

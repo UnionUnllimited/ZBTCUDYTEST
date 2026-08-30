@@ -1,0 +1,54 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════════════════════
+#  Titan Router — сторож таблицы nftables у PassWall
+#
+#  Проверяет, что в таблице inet passwall есть все четыре хук-цепочки,
+#  и если нет — зовёт titan_pw_restart.sh. Раз в минуту из cron.
+#
+#  Зачем это вообще нужно. gen_nft_tables в nftables.sh создаёт хуковые
+#  цепочки только при отсутствии таблицы:
+#
+#      if ! nft list table "$NFTABLE_NAME" >/dev/null 2>&1; then
+#          ... chain dstnat / mangle_prerouting / mangle_output / nat_output
+#      fi
+#
+#  А при загрузке таблицу успевает создать fw4: он выполняет
+#  /var/etc/passwall.include, тот зовёт app.sh update_wan_sets, и тот
+#  трогает наборы в inet passwall. Таблица возникает пустой, без хуков.
+#  PassWall стартует позже (global_delay.start_delay = 60), видит её
+#  готовой и проходит мимо. Дальше PSW_* дописываются в готовую таблицу,
+#  скрипт пишет «运行完成！», а трафик идёт мимо туннеля и у клиентов нет
+#  DNS. Тихо и на каждой загрузке.
+#
+#  Сторож отдельным файлом, а не внутри dns_watchdog: тот ждёт 300 секунд
+#  аптайма против лавины перезапусков, а здесь наоборот надо успеть как
+#  можно раньше. Штормить он не может — паузу держит titan_pw_restart.sh.
+# ═══════════════════════════════════════════════════════════════════
+
+set -u
+
+LOG_TAG="titan_pw_check"
+MIN_UPTIME=120
+
+UPTIME="$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)"
+
+# Раньше этого срока проверять нечего: PassWall ещё не стартовал, у него
+# минута задержки плюс время на заливку списков. Ранняя проверка увидит
+# недособранную таблицу и потребует перезапуск ровно тогда, когда всё и
+# так строится.
+[ "$UPTIME" -ge "$MIN_UPTIME" ] || exit 0
+
+# Таблицы нет вовсе — это нормально, если PassWall выключен или ещё не
+# дошёл до правил. Создаст сам, и создаст правильно.
+nft list table inet passwall >/dev/null 2>&1 || exit 0
+
+for chain in dstnat mangle_prerouting mangle_output nat_output; do
+    if ! nft list chain inet passwall "$chain" >/dev/null 2>&1; then
+        logger -t "$LOG_TAG" "нет цепочки $chain — таблица без хуков, чиним"
+        [ -x /usr/bin/titan_pw_restart.sh ] \
+            && /usr/bin/titan_pw_restart.sh "сторож: таблица без хук-цепочек"
+        exit 0
+    fi
+done
+
+exit 0

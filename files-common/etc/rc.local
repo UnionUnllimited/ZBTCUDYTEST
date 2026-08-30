@@ -53,30 +53,9 @@ EOF
 
 /etc/init.d/frpc restart
 
-# ── Проверка таблицы nftables после загрузки ─────────────────────
-# Сборка правил PassWall при старте регулярно срывается: остаётся
-# таблица без хук-цепочек, трафик идёт мимо туннеля, у клиентов нет DNS.
-# Само это не выправляется — слепок сломанной таблицы лежит в
-# PSW_RULE.nft, и каждый firewall restart её воспроизводит.
-#
-# Чинить умеет titan_pw_restart.sh, но до сих пор до него доходило только
-# через watchdog: тот ждёт 300 секунд аптайма плюс свою минуту в кроне,
-# итого до десяти минут неработающего роутера после каждой перезагрузки.
-# А перезагрузка бывает и еженедельная по крону, и после каждого OTA.
-#
-# Здесь проверяем сами через полторы минуты — к этому времени PassWall
-# уже отработал. В фоне, чтобы не задерживать загрузку.
-{
-    sleep 90
-    if [ -x /usr/bin/titan_pw_restart.sh ] && nft list table inet passwall >/dev/null 2>&1; then
-        for chain in dstnat mangle_prerouting mangle_output nat_output; do
-            if ! nft list chain inet passwall "$chain" >/dev/null 2>&1; then
-                logger -t rc.local "таблица passwall недостроена после загрузки — чиним"
-                /usr/bin/titan_pw_restart.sh -f "проверка после загрузки"
-                break
-            fi
-        done
-    fi
-} </dev/null >/dev/null 2>&1 &
+# Проверку таблицы nftables здесь не делаем.
+# Пробовали — фоновый блок с sleep не переживает завершения rc.local,
+# procd прибивает группу процессов. Сторож живёт в cron:
+# usr/bin/titan_pw_check.sh, раз в минуту.
 
 exit 0
