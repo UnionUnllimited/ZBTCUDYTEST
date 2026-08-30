@@ -398,6 +398,22 @@ else
 fi
 rm -f /www/cgi-bin/atl_netstatus 2>/dev/null || true
 
+# ── Адрес FRP-сервера в /etc/hosts ───────────────────────────
+# /etc/hosts входит в список сохраняемых при sysupgrade — наравне с
+# /etc/config и /etc/crontabs. Значит запись из образа до прошитых
+# роутеров не доезжает, и дописывать её надо отсюда. Пятый раз в этом
+# проекте наступаем на один и тот же капкан.
+#
+# Зачем она вообще: провайдеры блокируют pandora361.online и отдают на
+# него 0.0.0.0, из-за чего frpc идёт в никуда и роутер теряет удалённый
+# доступ. Точное значение неважно — frpc_watchdog.sh обновит адрес,
+# опросив публичные резолверы напрямую. Здесь нужно лишь стартовое, до
+# его первого захода на 300-й секунде аптайма.
+if ! grep -qF "frp.pandora361.online" /etc/hosts 2>/dev/null; then
+  echo "103.27.157.204 frp.pandora361.online" >> /etc/hosts
+  ok "Адрес FRP-сервера закреплён в /etc/hosts"
+fi
+
 # ── Добавляем titan.lan hostname ──────────────────────────────
 # 1. /etc/hosts
 grep -qF "titan.lan" /etc/hosts 2>/dev/null || echo "$LAN_IP titan.lan" >> /etc/hosts
