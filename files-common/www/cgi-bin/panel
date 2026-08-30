@@ -1242,80 +1242,74 @@ if [ "${GET_ACT:-}" = "api_ota" ]; then
 fi
 
 
-# ─── API: пинг серверов ────────────────────────────────────────
+# ─── API: URL Test серверов ────────────────────────────────────
+# Зовём штатный PassWall, а не меряем сами.
+#
+# Своя проверка стучалась curl'ом прямо в порт узла и считала живым
+# только то, что ответило по HTTP. Но на этих портах VLESS и Reality,
+# отвечать по HTTP они не обязаны — и все узлы поголовно показывались
+# как «✗», хотя туннель через них работал. В списке узлов самого
+# PassWall при этом видно обратное: TCPing может стоять Timeout, а
+# URL Test — 1219 ms, потому что он меряет иначе.
+#
+# test.sh url_test_node поднимает временный SOCKS через саму ноду и
+# гонит сквозь неё настоящий запрос, возвращая «код:время». Это и есть
+# честная проверка, и повторять её своими силами незачем.
+#
+# Цена — время: на каждый узел временный xray, пауза 2с и запрос до 5с.
+# Поэтому строго последовательно (пять xray разом эту железку положат)
+# и с дедлайном: uhttpd убивает CGI через 60 секунд.
 if [ "${GET_ACT:-}" = "api_ping_nodes" ]; then
   echo "Content-type: application/json; charset=utf-8"
   echo "Cache-Control: no-store, no-cache"
   echo ""
+  PW_TEST="/usr/share/passwall/test.sh"
   _pdir="/tmp/atl_ping_$$"
   if ! mkdir -p "$_pdir" 2>/dev/null; then printf '{}'; exit 0; fi
-  # Собираем ноды через pw_nodes_list (те же секции что в select)
+
+  # Подчищаем xray от прерванного прошлого прогона: если CGI убили по
+  # таймауту, его временные процессы остаются висеть и едят память.
+  for _stale in $(pgrep -f 'url_test_.*\.json' 2>/dev/null || true); do
+    kill -9 "$_stale" 2>/dev/null || true
+  done
+  # Собираем ноды через pw_nodes_list (те же секции что в select).
+  # Балансер отсеивается сам: у него нет address, а тестировать группу
+  # нечем — url_test_node работает с конкретным узлом.
   pw_nodes_list 2>/dev/null > "$_pdir/seclist.txt" || true
   _n=0
   while IFS="$(printf '\t')" read -r _sec _rem; do
     [ -n "$_sec" ] || continue
     _addr="$(uci -q get passwall."$_sec".address 2>/dev/null || true)"
-    _port="$(uci -q get passwall."$_sec".port 2>/dev/null || true)"
     [ -n "$_addr" ] || continue
-    [ -n "$_port" ] || _port="443"
     _n=$((_n+1))
-    printf '%s\t%s\t%s\t%s\n' "$_n" "$_sec" "$_addr" "$_port"
+    printf '%s\t%s\n' "$_n" "$_sec"
   done < "$_pdir/seclist.txt" > "$_pdir/nodes.txt" 2>/dev/null || true
-  # Параллельный TCPing — лимит 6 потоков, файлы по номеру без спецсимволов
-  _jobs=0
-  _maxjobs=6
-  while IFS="$(printf '\t')" read -r _num _sec _addr _port; do
-    [ -n "$_num" ] && [ -n "$_addr" ] || continue
+  # Последовательно и с дедлайном. Узлы, до которых не успели, отдаём
+  # как -3 — панель покажет их без метки, а не соврёт про «мёртв».
+  _deadline=$(( $(date +%s) + 45 ))
+  while IFS="$(printf '\t')" read -r _num _sec; do
+    [ -n "$_num" ] && [ -n "$_sec" ] || continue
     _nf="$_pdir/r_$_num"
     _sf="$_pdir/s_$_num"
     printf '%s' "$_sec" > "$_sf"
     (
-      # URL Test — меряем время TCP-хендшейка, как это делает PassWall.
-      #
-      # Судить по коду возврата curl нельзя: на этих портах живёт VLESS
-      # или Reality, и обычный HTTP-запрос там отвечать не обязан. Сервер
-      # соединение примет и молча закроет, curl отдаст 52 или 56 — а порт
-      # при этом полностью рабочий. Раньше такие узлы поголовно попадали
-      # в «✗», хотя туннель через них шёл.
-      #
-      # Признак успеха один: time_connect ненулевой, значит хендшейк
-      # состоялся. Код возврата нужен только чтобы отличить таймаут (28)
-      # от закрытого порта (7) — там time_connect и так нулевой.
-      _ms="-1"
-      if command -v curl >/dev/null 2>&1; then
-        _raw="$(curl -o /dev/null -s -w '%{time_connect}' \
-          --connect-timeout 4 --max-time 6 \
-          "http://${_addr}:${_port}/" 2>/dev/null)"
-        _curl_ec=$?
-        if [ -n "$_raw" ] && [ "$_raw" != "0.000" ] && [ "$_raw" != "0" ]; then
-          _ms="$(awk "BEGIN{v=$_raw*1000; printf \"%d\", (v<1)?1:v}" 2>/dev/null || echo "-1")"
-        elif [ $_curl_ec -eq 28 ]; then
-          _ms="-2"  # таймаут — хост не отвечает
-        fi
-      fi
-      # Fallback: nc TCP connect если curl недоступен
-      if [ "$_ms" = "-1" ] && command -v nc >/dev/null 2>&1; then
-        _t1="$(awk '{print int($1*1000)}' /proc/uptime 2>/dev/null || echo 0)"
-        nc -w 3 "$_addr" "$_port" </dev/null >/dev/null 2>&1
-        _nc_ec=$?
-        _t2="$(awk '{print int($1*1000)}' /proc/uptime 2>/dev/null || echo 0)"
-        if [ $_nc_ec -eq 0 ]; then
-          _ms=$((_t2 - _t1))
-          [ "$_ms" -lt 1 ] && _ms=1
-        else
-          _elapsed=$((_t2 - _t1))
-          [ "$_elapsed" -ge 2500 ] && _ms="-2"  # завис на -w 3 → таймаут
-        fi
+      _ms="-3"
+      if [ -x "$PW_TEST" ] && [ "$(date +%s)" -lt "$_deadline" ]; then
+        # Отдаёт «код:время», например 204:0.214000
+        _raw="$(sh "$PW_TEST" url_test_node "$_sec" 2>/dev/null | tail -n1)"
+        _code="${_raw%%:*}"
+        _time="${_raw#*:}"
+        case "$_code" in
+          200|204|301|302)
+            _ms="$(awk "BEGIN{v=${_time:-0}*1000; printf \"%d\", (v<1)?1:v}" 2>/dev/null || echo "-1")"
+            ;;
+          *) _ms="-1" ;;
+        esac
       fi
       printf '%s' "$_ms" > "$_nf"
-    ) &
-    _jobs=$((_jobs+1))
-    if [ "$_jobs" -ge "$_maxjobs" ]; then
-      wait
-      _jobs=0
-    fi
+    )
   done < "$_pdir/nodes.txt"
-  wait
+
   # Собираем JSON по номерам — без glob по спецсимволам
   _json='{'
   _sep=''
@@ -3716,7 +3710,10 @@ function nodeBaseLabel(opt){
 }
 function nodeSetPing(opt, ms){
   var base = nodeBaseLabel(opt);
-  if(ms === undefined){ opt.text = base; return; }
+  // undefined — узла нет в ответе (например балансер), -3 — не успели
+  // проверить по дедлайну. И то и другое значит «не знаем», а не «мёртв»:
+  // метку не ставим вовсе, чтобы не врать.
+  if(ms === undefined || ms === -3){ opt.text = base; return; }
   if(ms >= 0){
     var c = ms < 80 ? '🟢' : ms < 200 ? '🟡' : '🔴';
     opt.text = base + '  ' + c + ' ' + ms + 'ms';
@@ -3733,7 +3730,10 @@ function pingNodes(){
   var sel = g('pw_node');
   if(!sel) return;
   if(btn){ btn.disabled = true; btn.textContent = '⏳…'; }
-  if(status) status.textContent = 'URL Test — проверка серверов…';
+  // Проверка идёт через сами узлы и потому небыстрая: на каждый
+  // поднимается временный канал. Честно предупреждаем, иначе выглядит
+  // как зависшая кнопка.
+  if(status) status.textContent = 'Проверяем серверы по очереди, до минуты…';
 
   fetch('/cgi-bin/panel?action=api_ping_nodes', {credentials:'include'})
     .then(function(r){ return r.json(); })
@@ -3997,34 +3997,16 @@ window.addEventListener('load', function(){
     setTimeout(function(){
       if(bbtn) bbtn.disabled=false;
       pollStatus();
-      // Если переключили сервер — проверяем его TCP-доступность
-      if(_nc_param){
-        fetch('/cgi-bin/panel?action=api_ping_nodes', {credentials:'include'})
-          .then(function(r){ return r.json(); })
-          .then(function(data){
-            _pingCache = data;
-            var ms = data[_nc_param];
-            var hintEl = g('ping-status');
-            if(ms === undefined || ms < 0){
-              var reason = (ms === -2)
-                ? '⏰ Сервер не отвечает (таймаут) — обновите подписку или выберите другой'
-                : '✗ Порт сервера закрыт — обновите подписку или выберите другой сервер';
-              if(hintEl){ hintEl.textContent = reason; hintEl.style.color = '#e04'; }
-              setTimeout(function(){
-                if(hintEl){ hintEl.textContent = ''; hintEl.style.color = ''; }
-              }, 10000);
-            }
-            // Обновляем пинги во всём select
-            var sel = g('pw_node');
-            if(sel){
-              var opts = sel.options;
-              for(var i = 0; i < opts.length; i++){
-                nodeSetPing(opts[i], data[opts[i].value]);
-              }
-            }
-          })
-          .catch(function(){});
-      }
+      // Автопроверки после смены сервера здесь больше нет.
+      //
+      // Раньше она стучалась curl'ом в порт узла — дёшево, но неверно:
+      // на VLESS и Reality такой стук законно не отвечает, и панель
+      // писала «порт сервера закрыт» про полностью рабочий сервер.
+      // Теперь проверка идёт настоящая, через сам узел, и стоит дорого:
+      // временный канал на каждый сервер, до минуты на все. Запускать
+      // это автоматически, да ещё поверх перезапуска PassWall, который
+      // прямо сейчас идёт после смены узла, — верный способ положить
+      // роутер. Проверка осталась на кнопке URL Test, как в PassWall.
     }, _bw*1000);
   } else {
     pollStatus();
@@ -4034,7 +4016,9 @@ window.addEventListener('load', function(){
   fetchStats();
   setInterval(fetchDevices, 20000);
   setInterval(fetchStats, 30000);
-  pingNodes();
+  // pingNodes() при загрузке больше не зовём: проверка стала настоящей,
+  // с временным каналом на каждый узел и минутой на всё. Открывать этим
+  // каждую страницу панели нельзя — только по кнопке.
   // Авто-закрытие уведомлений через 4 сек
   document.querySelectorAll('.msg,.err').forEach(function(el){
     setTimeout(function(){
