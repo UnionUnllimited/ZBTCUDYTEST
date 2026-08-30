@@ -1264,15 +1264,24 @@ if [ "${GET_ACT:-}" = "api_ping_nodes" ]; then
     _sf="$_pdir/s_$_num"
     printf '%s' "$_sec" > "$_sf"
     (
-      # URL Test — curl измеряет время TCP-соединения (как URL test в passwall)
+      # URL Test — меряем время TCP-хендшейка, как это делает PassWall.
+      #
+      # Судить по коду возврата curl нельзя: на этих портах живёт VLESS
+      # или Reality, и обычный HTTP-запрос там отвечать не обязан. Сервер
+      # соединение примет и молча закроет, curl отдаст 52 или 56 — а порт
+      # при этом полностью рабочий. Раньше такие узлы поголовно попадали
+      # в «✗», хотя туннель через них шёл.
+      #
+      # Признак успеха один: time_connect ненулевой, значит хендшейк
+      # состоялся. Код возврата нужен только чтобы отличить таймаут (28)
+      # от закрытого порта (7) — там time_connect и так нулевой.
       _ms="-1"
       if command -v curl >/dev/null 2>&1; then
         _raw="$(curl -o /dev/null -s -w '%{time_connect}' \
           --connect-timeout 4 --max-time 6 \
           "http://${_addr}:${_port}/" 2>/dev/null)"
         _curl_ec=$?
-        # exit 0 = успех, exit 28 = таймаут (нет ответа), exit 7 = порт закрыт
-        if [ $_curl_ec -eq 0 ] && [ -n "$_raw" ] && [ "$_raw" != "0.000" ] && [ "$_raw" != "0" ]; then
+        if [ -n "$_raw" ] && [ "$_raw" != "0.000" ] && [ "$_raw" != "0" ]; then
           _ms="$(awk "BEGIN{v=$_raw*1000; printf \"%d\", (v<1)?1:v}" 2>/dev/null || echo "-1")"
         elif [ $_curl_ec -eq 28 ]; then
           _ms="-2"  # таймаут — хост не отвечает
@@ -3681,6 +3690,37 @@ function accToggle(hdr){
 // ── Ping nodes ───────────────────────────────────────────────
 var _pingCache = {};
 
+// Имя сервера без метки пинга.
+//
+// Раньше метку отрезали регуляркой по хвосту текста, и это не работало:
+// option.text по спецификации возвращает текст со схлопнутыми пробелами,
+// а дописывали метку через два. Регулярка искала два пробела, находила
+// один, старую метку не срезала — и каждый прогон теста добавлял ещё
+// одну. Отсюда «Германия ✗ ✗».
+//
+// Плюс класс [🟢🟡🔴] в регулярке без флага u разбирается как половинки
+// суррогатных пар, так что цветные метки не срезались вообще никогда.
+//
+// Поэтому чистое имя запоминаем один раз, при первом касании, и дальше
+// всегда строим подпись от него.
+function nodeBaseLabel(opt){
+  var b = opt.getAttribute('data-base');
+  if(b === null){ b = opt.text; opt.setAttribute('data-base', b); }
+  return b;
+}
+function nodeSetPing(opt, ms){
+  var base = nodeBaseLabel(opt);
+  if(ms === undefined){ opt.text = base; return; }
+  if(ms >= 0){
+    var c = ms < 80 ? '🟢' : ms < 200 ? '🟡' : '🔴';
+    opt.text = base + '  ' + c + ' ' + ms + 'ms';
+  } else if(ms === -2){
+    opt.text = base + '  ⏰ тайм';
+  } else {
+    opt.text = base + '  ✗';
+  }
+}
+
 function pingNodes(){
   var btn = g('pingBtn');
   var status = g('ping-status');
@@ -3696,18 +3736,7 @@ function pingNodes(){
       // Обновляем опции select
       var opts = sel.options;
       for(var i = 0; i < opts.length; i++){
-        var val = opts[i].value;
-        var ms  = data[val];
-        // Убираем старый пинг из текста
-        var txt = opts[i].text.replace(/  (?:[🟢🟡🔴] \d+ms|—|⏳|⏰ тайм|✗)$/, '');
-        if(ms !== undefined && ms >= 0){
-          var color = ms < 80 ? '🟢' : ms < 200 ? '🟡' : '🔴';
-          opts[i].text = txt + '  ' + color + ' ' + ms + 'ms';
-        } else if(ms === -2){
-          opts[i].text = txt + '  ⏰ тайм';
-        } else if(ms === -1){
-          opts[i].text = txt + '  ✗';
-        }
+        nodeSetPing(opts[i], data[opts[i].value]);
       }
       if(btn){ btn.disabled = false; btn.textContent = '🏓 URL Test'; }
       if(status) status.textContent = '✅ Выберите сервер с наименьшей задержкой';
@@ -3984,16 +4013,7 @@ window.addEventListener('load', function(){
             if(sel){
               var opts = sel.options;
               for(var i = 0; i < opts.length; i++){
-                var pms = data[opts[i].value];
-                var ptxt = opts[i].text.replace(/  (?:[🟢🟡🔴] \d+ms|—|⏳|⏰ тайм|✗)$/, '');
-                if(pms !== undefined && pms >= 0){
-                  var col = pms < 80 ? '🟢' : pms < 200 ? '🟡' : '🔴';
-                  opts[i].text = ptxt + '  ' + col + ' ' + pms + 'ms';
-                } else if(pms === -2){
-                  opts[i].text = ptxt + '  ⏰ тайм';
-                } else if(pms === -1){
-                  opts[i].text = ptxt + '  ✗';
-                }
+                nodeSetPing(opts[i], data[opts[i].value]);
               }
             }
           })
