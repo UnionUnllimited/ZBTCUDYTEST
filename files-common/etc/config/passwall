@@ -111,9 +111,11 @@ config subscribe_list
         option vmess_type 'global'
         option vless_type 'global'
         option domain_strategy 'UseIPv4'
-        option auto_update '1'
-        option week_update '8'
-        option interval_update '1'
+        # Имена от 26.8.26. Раньше здесь стояли auto_update, week_update и
+        # interval_update — эта версия их не читает, и расписание обновления
+        # подписки не работало вовсе. Держалось всё на boot_update ниже.
+        option update_week_mode '8'
+        option update_interval_mode '12'
         option user_agent 'passwall'
         option hysteria2_type 'global'
         option boot_update '1'

@@ -166,6 +166,26 @@ do
   fi
 done
 
+# Расписание обновления подписки — те же переименованные имена.
+# Секции подписки PassWall переименовывает в sub_XXXXX своим uci-defaults,
+# поэтому идём по типу, а не по имени — тем же приёмом, что и он сам.
+# Обновление при загрузке (boot_update) он делает правильно, уже после
+# построения правил, поэтому его только включаем.
+for _sub in $(uci -q show passwall 2>/dev/null | grep "=subscribe_list" | cut -d. -f2 | cut -d= -f1); do
+  if [ "$(uci -q get passwall.$_sub.update_week_mode 2>/dev/null)" != "8" ] \
+     || [ "$(uci -q get passwall.$_sub.update_interval_mode 2>/dev/null)" != "12" ] \
+     || [ "$(uci -q get passwall.$_sub.boot_update 2>/dev/null)" != "1" ]; then
+    uci -q set passwall.$_sub.update_week_mode='8' || true
+    uci -q set passwall.$_sub.update_interval_mode='12' || true
+    uci -q set passwall.$_sub.boot_update='1' || true
+    uci -q delete passwall.$_sub.auto_update 2>/dev/null || true
+    uci -q delete passwall.$_sub.week_update 2>/dev/null || true
+    uci -q delete passwall.$_sub.interval_update 2>/dev/null || true
+    LISTS_FIXED=1
+    ok "PassWall: расписание подписки $_sub исправлено"
+  fi
+done
+
 # Автообновление списков: Loop Mode раз в 12 часов средствами самого
 # PassWall. В конфиге лежали auto_update, week_update и interval_update —
 # имена из старых версий, эта читает update_week_mode и
@@ -425,7 +445,10 @@ rm -f /usr/bin/youtube_strategy_autoselect.sh 2>/dev/null || true
 # а grep ниже добавляет задачу, только когда её ещё нет — со старой
 # строкой в файле новое расписание никогда бы не доехало.
 grep -vE "youtube_strategy|after_passwall|autoselect|passwall.*subscribe|atl_nightly|vpn_watchdog|dns_watchdog|frpc_watchdog" /etc/crontabs/root > /tmp/atl_cron_tmp 2>/dev/null || true
-echo "0 4 * * * lua /usr/share/passwall/subscribe.lua >>/tmp/atl_panel_passwall_update.log 2>&1" >> /tmp/atl_cron_tmp
+# Свою строку для подписки больше не ставим: расписание держит сам
+# PassWall (Loop Mode выше), а при загрузке отрабатывает boot_update —
+# и отрабатывает правильно, после построения правил. Два механизма
+# сразу означали бы два перезапуска PassWall в сутки вместо одного.
 mv /tmp/atl_cron_tmp /etc/crontabs/root
 
 # Наши задачи на обновлённых роутерах сами не появляются:
