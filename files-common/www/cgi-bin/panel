@@ -47,8 +47,13 @@ html_escape(){ sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\
 strip_newlines(){ tr -d '\r\n'; }
 trim_spaces(){ awk '{gsub(/^[ \t]+|[ \t]+$/,""); print}'; }
 
+# Панель едет внутри образа и отдельной нумерации не имеет — показываем
+# номер сборки прошивки, разъезжаться этим двум числам незачем.
+# PANEL_VERSION остаётся запасным на случай, если /etc/titan_version
+# не прочитался: пусто в подвале выглядит как поломка.
 panel_version(){
-  printf "%s" "$PANEL_VERSION"
+  _pv="$(ota_build)"
+  printf "%s" "${_pv:-$PANEL_VERSION}"
 }
 
 # ── Обновление прошивки ─────────────────────────────────────────
@@ -252,8 +257,16 @@ normalize_server_label(){
   printf "%s" "$s"
 }
 
+# PassWall 26.8.26 переименовал tcp_node в node, а udp_node убрал совсем:
+# см. migrate_option в etc/uci-defaults/luci-app-passwall из пакета. Опция
+# переименовывается на первой же загрузке после прошивки, поэтому панель,
+# читавшая tcp_node, видела пустоту — активный сервер не подсвечивался, а
+# «Применить» писало в опцию, которую PassWall больше не читает.
+# Читаем новое имя, старое оставляем запасным для более ранних сборок.
 pw_current_node(){
-  uci -q get passwall.@global[0].tcp_node 2>/dev/null || true
+  n="$(uci -q get passwall.@global[0].node 2>/dev/null || true)"
+  [ -n "${n:-}" ] || n="$(uci -q get passwall.@global[0].tcp_node 2>/dev/null || true)"
+  printf "%s" "${n:-}"
 }
 
 pw_node_label(){
@@ -262,11 +275,15 @@ pw_node_label(){
   label="$(uci -q get passwall."$node".remarks 2>/dev/null || true)"
   [ -n "$label" ] || label="$(uci -q get passwall."$node".address 2>/dev/null || true)"
   [ -n "$label" ] || label="$node"
+  # Составные узлы PassWall — балансировщик и его родня — узнаём по
+  # протоколу. Имя ("TitanSwitch") приходит из подписки и может смениться,
+  # а идентификатор секции вообще случайный, по ним опознавать ненадёжно.
+  case "$(uci -q get passwall."$node".protocol 2>/dev/null || true)" in
+    _balancing|_urltest) label="Авто (балансер)" ;;
+    _shunt)              label="Авто (по правилам)" ;;
+  esac
   case "$label" in
     TitanSwitch|TITANSWITCH|titanswitch) label="Авто (балансер)" ;;
-  esac
-  case "$node" in
-    *TitanSwitch*|*TITANSWITCH*|*titanswitch*) label="Авто (балансер)" ;;
   esac
   normalize_server_label "$label"
 }
@@ -294,11 +311,20 @@ pw_nodes_list(){
 pw_apply_node(){
   node="$1"
   [ -n "$node" ] || return 1
+  # Пишем во все три имени: какое читает установленный PassWall, зависит
+  # от его версии, а лишние опции безвредны — его же миграция уберёт их
+  # на ближайшей загрузке.
+  uci -q set passwall.@global[0].node="$node" 2>/dev/null || true
   uci -q set passwall.@global[0].tcp_node="$node" 2>/dev/null || true
   uci -q set passwall.@global[0].udp_node="$node" 2>/dev/null || true
   uci -q commit passwall >/dev/null 2>&1 || true
-  # Запускаем перезапуск в фоне — CGI сразу возвращает redirect без ожидания
+  # Запускаем перезапуск в фоне — CGI сразу возвращает redirect без ожидания.
+  # Здесь идём мимо titan_pw_restart.sh намеренно: смена сервера — это
+  # осознанное действие клиента, и пауза после предыдущего перезапуска не
+  # должна её проглотить. Но отметку ставим ту же, чтобы watchdog'и не
+  # набросились сверху, пока сервисы поднимаются.
   {
+    date +%s > /tmp/titan_pw_restart_at 2>/dev/null || true
     /etc/init.d/passwall restart >/dev/null 2>&1 || true
     sleep 2
     conntrack -F 2>/dev/null || echo > /proc/net/nf_conntrack 2>/dev/null || true
@@ -312,13 +338,16 @@ bypass_state(){
 }
 
 # VPN watchdog — крон каждые 10 минут. on=добавить, off=убрать
+# Минута смещена: watchdog'и не должны просыпаться в одну секунду, иначе
+# на общий сбой они реагируют втроём одновременно. Расписание обязано
+# совпадать с тем, что прописывает uci-defaults/60_atlanta_panel.
 vpn_watchdog_cron(){
   CRON_F="/etc/crontabs/root"
   [ -f "$CRON_F" ] || touch "$CRON_F" 2>/dev/null || true
   # Всегда убираем старую строку, чтобы не было дублей
   grep -v "vpn_watchdog.sh" "$CRON_F" > /tmp/atl_wd_cron.$$ 2>/dev/null || true
   if [ "$1" = "on" ]; then
-    echo "*/10 * * * * /usr/bin/vpn_watchdog.sh" >> /tmp/atl_wd_cron.$$
+    echo "5-59/10 * * * * /usr/bin/vpn_watchdog.sh" >> /tmp/atl_wd_cron.$$
   else
     # Добиваем уже запущенный watchdog, иначе он включит VPN обратно
     pkill -f /usr/bin/vpn_watchdog.sh 2>/dev/null || true
@@ -1921,6 +1950,24 @@ if pw_exists; then
   fi
 fi
 
+# tcp_node вполне может указывать на секцию, которой в списке нет:
+# балансировщик без remarks, узел, исчезнувший после обновления подписки.
+# Тогда ни один option не помечен selected — и браузер показывает первый
+# по алфавиту. Клиент видит сервер, через который он не работает, а нажав
+# «Применить», ещё и переключается на него с балансировщика.
+# Поэтому текущий узел дописываем явно и помечаем сами.
+case "$PW_OPTIONS" in
+  *" selected>"*) ;;
+  *)
+    if [ -n "${PW_CURRENT:-}" ]; then
+      _es_cur="$(printf '%s' "$PW_CURRENT" | html_escape)"
+      _es_lab="$(printf '%s' "${PW_CURRENT_LABEL:-$PW_CURRENT}" | html_escape)"
+      PW_OPTIONS="$(printf '<option value="%s" selected>%s</option>\n%s' \
+        "$_es_cur" "$_es_lab" "$PW_OPTIONS")"
+    fi
+    ;;
+esac
+
 ES_NAME="$(printf '%s' "$ROUTER_NAME" | html_escape)"
 ES_MSG="$(printf '%s' "${MSG:-}" | html_escape)"
 ES_ERR="$(printf '%s' "${ERR:-}" | html_escape)"
@@ -3031,7 +3078,7 @@ input::placeholder{color:var(--dim)}
 
   <!-- /accordion layout -->
 
-  <div class="panel-footer">Версия панели: ${ES_INSTALLED_VER}</div>
+  <div class="panel-footer">Версия прошивки: ${ES_INSTALLED_VER}</div>
 
 </div><!-- /wrap -->
 

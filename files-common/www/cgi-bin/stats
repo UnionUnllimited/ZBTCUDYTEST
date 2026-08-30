@@ -15,7 +15,10 @@ mem_used=$((mem_total-mem_free-mem_buf-mem_cache)); ram_pct=$((mem_used*100/mem_
 uptime_sec=$(awk '{print int($1)}' /proc/uptime)
 load=$(awk '{print $1}' /proc/loadavg)
 wan_ip=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/{print $7}'); [ -z "$wan_ip" ] && wan_ip="unknown"
-node=$(uci -q get passwall.@global[0].tcp_node 2>/dev/null)
+# PassWall 26.8.26 переименовал tcp_node в node — старое имя оставлено
+# запасным для более ранних сборок.
+node=$(uci -q get passwall.@global[0].node 2>/dev/null)
+[ -n "$node" ] || node=$(uci -q get passwall.@global[0].tcp_node 2>/dev/null)
 vpn_ip=$([ -n "$node" ] && uci -q get passwall.${node}.address 2>/dev/null || echo "")
 wan_dev=$(uci -q get network.wan.device 2>/dev/null)
 [ -n "$wan_dev" ] || wan_dev=$(ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)

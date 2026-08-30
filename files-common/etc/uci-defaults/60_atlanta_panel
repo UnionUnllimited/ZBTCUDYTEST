@@ -88,6 +88,35 @@ if [ "$(uci -q get passwall.@global[0].chn_list 2>/dev/null)" = "proxy" ]; then
   ok "PassWall: chn_list переведён в direct"
 fi
 
+# ── Выбранный узел ───────────────────────────────────────────────
+# PassWall 26.8.26 переименовал tcp_node в node и удалил udp_node —
+# migrate_option в его собственном uci-defaults. Отрабатывает это на
+# первой загрузке после прошивки, так что роутер оказывается с пустым
+# tcp_node, а всё наше, что читало старое имя, видит пустоту.
+#
+# Здесь чиним обе беды разом: переносим значение, если миграция ещё не
+# прошла, и подставляем балансировщик, если узел пуст или указывает на
+# исчезнувшую секцию (так бывает после обновления подписки).
+PW_NODE="$(uci -q get passwall.@global[0].node 2>/dev/null || true)"
+[ -n "${PW_NODE:-}" ] || PW_NODE="$(uci -q get passwall.@global[0].tcp_node 2>/dev/null || true)"
+PW_NODE_OK=0
+if [ -n "${PW_NODE:-}" ] && uci -q get passwall."$PW_NODE" >/dev/null 2>&1; then
+  PW_NODE_OK=1
+fi
+if [ "$PW_NODE_OK" = 0 ]; then
+  # Балансировщик ищем по протоколу — имя приходит из подписки и меняется.
+  PW_NODE="$(uci -q show passwall 2>/dev/null \
+    | sed -n "s/^passwall\.\([^.]*\)\.protocol='_balancing'\$/\1/p" | head -1)"
+  [ -n "${PW_NODE:-}" ] || PW_NODE="$(uci -q show passwall 2>/dev/null \
+    | sed -n "s/^passwall\.\([^.]*\)\.remarks='TitanSwitch'\$/\1/p" | head -1)"
+fi
+if [ -n "${PW_NODE:-}" ] \
+   && [ "$(uci -q get passwall.@global[0].node 2>/dev/null || true)" != "$PW_NODE" ]; then
+  uci -q set passwall.@global[0].node="$PW_NODE" || true
+  uci -q commit passwall || true
+  ok "PassWall: активный узел — $PW_NODE"
+fi
+
 # ── Три списка, все со своего зеркала ────────────────────────────
 # Раскладка такая:
 #   chnlist  = direct-domains.lst — российские домены мимо туннеля
@@ -196,6 +225,18 @@ else
   info "ВНИМАНИЕ: hotplug.d/iface/20_titan_lists отсутствует"
 fi
 
+# Общая точка перезапуска PassWall и ловушка всплесков нагрузки.
+step "[+] Проверяем защиту от лавины перезапусков"
+for f in /usr/bin/titan_pw_restart.sh /usr/bin/titan_loadwatch.sh; do
+  if [ -s "$f" ]; then
+    chmod 0755 "$f"
+  else
+    info "ВНИМАНИЕ: $f отсутствует — образ собран неполно"
+  fi
+done
+[ -f /etc/titan_load.log ] || : > /etc/titan_load.log 2>/dev/null || true
+ok "titan_pw_restart.sh и titan_loadwatch.sh на месте"
+
 # PassWall 26.8.26 при tcp_proxy_mode=disable не создаёт правил
 # перенаправления вовсе: xray работает, а трафик идёт мимо туннеля,
 # и внешне это выглядит как исправный роутер без VPN. Значение было
@@ -220,7 +261,8 @@ fi
 for f in \
   "/etc/titan_installed" \
   "/etc/titan_ota_state" \
-  "/etc/titan_ota_status"
+  "/etc/titan_ota_status" \
+  "/etc/titan_load.log"
 do
   grep -qxF "$f" /etc/sysupgrade.conf 2>/dev/null || echo "$f" >> /etc/sysupgrade.conf
 done
@@ -377,35 +419,42 @@ HOTPLUG
   ok "Обработчик кнопки Reset установлен (запасной)"
 fi
 
-# ── Убираем дублирующий after_passwall из автозапуска ─────────
-# ── Инициализируем файл версии если отсутствует ───────────────
-[ -s /etc/atl_panel_update_state ] || echo "4.1.9" > /etc/atl_panel_update_state
-ok "Версия панели инициализирована"
+# Файл /etc/atl_panel_update_state больше не нужен: панель показывает
+# номер сборки из /etc/titan_version, а этот держал вечное «4.1.9».
+rm -f /etc/atl_panel_update_state 2>/dev/null || true
 
 step "[+] Чистим лишние задачи cron"
 rm -f /usr/bin/youtube_strategy_autoselect.sh 2>/dev/null || true
 /etc/init.d/after_passwall stop 2>/dev/null || true
 /etc/init.d/after_passwall disable 2>/dev/null || true
 # Оставляем только обновление подписки в 4:00 ночи
-grep -vE "youtube_strategy|after_passwall|autoselect|passwall.*subscribe|atl_nightly" /etc/crontabs/root > /tmp/atl_cron_tmp 2>/dev/null || true
+# Строки watchdog'ов вычищаем тоже: они переезжают на разнесённые минуты,
+# а grep ниже добавляет задачу, только когда её ещё нет — со старой
+# строкой в файле новое расписание никогда бы не доехало.
+grep -vE "youtube_strategy|after_passwall|autoselect|passwall.*subscribe|atl_nightly|vpn_watchdog|dns_watchdog|frpc_watchdog" /etc/crontabs/root > /tmp/atl_cron_tmp 2>/dev/null || true
 echo "0 4 * * * lua /usr/share/passwall/subscribe.lua >>/tmp/atl_panel_passwall_update.log 2>&1" >> /tmp/atl_cron_tmp
 mv /tmp/atl_cron_tmp /etc/crontabs/root
 
 # Наши задачи на обновлённых роутерах сами не появляются:
 # /etc/crontabs/root сохраняется при sysupgrade, и новые строки из
 # образа туда не попадают. Дописываем недостающие, не трогая чужие.
+# Минуты у watchdog'ов разнесены намеренно и нигде не пересекаются:
+#   vpn :05 :15 :25 …   dns :01 :06 :11 …   frp :03 :08 :13 …
+# Раньше стояло */10 и */5 — все трое просыпались в одну секунду и на
+# общий сбой отвечали втроём разом.
 for job in \
-  "*/10 * * * * /usr/bin/vpn_watchdog.sh" \
-  "*/5 * * * * /usr/bin/dns_watchdog.sh" \
-  "*/5 * * * * /usr/bin/frpc_watchdog.sh" \
-  "30 4 * * * /usr/bin/titan_ota.sh"
+  "5-59/10 * * * * /usr/bin/vpn_watchdog.sh" \
+  "1-59/5 * * * * /usr/bin/dns_watchdog.sh" \
+  "3-59/5 * * * * /usr/bin/frpc_watchdog.sh" \
+  "30 4 * * * /usr/bin/titan_ota.sh" \
+  "* * * * * /usr/bin/titan_loadwatch.sh"
 do
   bin="${job##* }"
   [ -x "$bin" ] || continue
   grep -qF "$bin" /etc/crontabs/root 2>/dev/null || echo "$job" >> /etc/crontabs/root
 done
 /etc/init.d/cron restart >/dev/null 2>&1 || true
-ok "Cron: обновление подписки в 04:00"
+ok "Cron: watchdog'и разведены по минутам, ловушка нагрузки включена"
 
 
 # ── Маркер установки ─────────────────────────────────────────

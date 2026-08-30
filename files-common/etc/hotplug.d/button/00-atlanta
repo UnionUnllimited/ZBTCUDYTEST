@@ -37,6 +37,9 @@ rm -f /tmp/atl_panel_sid /tmp/atl_panel_update.lock 2>/dev/null
 NODE=$(uci -q show passwall 2>/dev/null \
   | sed -n "s/^passwall\.\([^.]*\)\.remarks='TitanSwitch'\$/\1/p" | head -1)
 [ -n "$NODE" ] || NODE='fNDZDacw'
+# PassWall 26.8.26 читает node; tcp_node и udp_node пишем для более
+# ранних сборок, его же миграция уберёт лишнее на следующей загрузке.
+uci -q set passwall.@global[0].node="$NODE"
 uci -q set passwall.@global[0].tcp_node="$NODE"
 uci -q set passwall.@global[0].udp_node="$NODE"
 uci -q set passwall.@global[0].enabled='1'

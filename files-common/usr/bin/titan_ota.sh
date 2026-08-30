@@ -34,7 +34,19 @@ LOCK="/tmp/titan_ota.lock"
 WORK="/tmp/titan_ota"
 MODE="${1:-auto}"
 
-log() { logger -t "$LOG_TAG" "$*"; [ "$MODE" != auto ] && printf '%s\n' "$*"; }
+# Два адресата. syslog наш — туда пишем всё как есть, по нему и
+# разбираемся. stdout при ручном запуске показывает панель, а это уже
+# глаза клиента: адреса своих серверов туда попадать не должны.
+#
+# log_sys — только в syslog, для строк с адресами.
+# log     — в оба, плюс страховка: если адрес всё же просочится в
+#           сообщение, шаблон вырежет его на выходе наружу.
+log_sys() { logger -t "$LOG_TAG" "$*"; }
+log() {
+    logger -t "$LOG_TAG" "$*"
+    [ "$MODE" != auto ] && printf '%s\n' "$*" \
+        | sed -r 's#https?://[^ ]+#сервер обновлений#g'
+}
 die() { [ -n "${2:-}" ] && set_status "$2"; log "$1"; cleanup; exit 1; }
 cleanup() { rm -rf "$WORK"; rm -f "$LOCK"; }
 
@@ -84,10 +96,12 @@ for u in $OTA_URLS; do
     if curl -fsSL --max-time 60 --retry 1 "$u" -o "$WORK/manifest.json" \
        && [ -s "$WORK/manifest.json" ]; then
         OTA_URL="$u"
-        log "манифест взят с $u"
+        log_sys "манифест взят с $u"
+        log "манифест получен"
         break
     fi
-    log "зеркало не ответило: $u"
+    log_sys "зеркало не ответило: $u"
+    log "зеркало не ответило, пробуем следующее"
     rm -f "$WORK/manifest.json"
 done
 [ -n "$OTA_URL" ] || die "ни одно зеркало не отдало манифест"
@@ -175,7 +189,8 @@ NEED=$(( ${SIZE:-30000000} / 1024 + 20000 ))
 
 # ── Скачивание ───────────────────────────────────────────────────
 IMG="$WORK/firmware.bin"
-log "качаем $URL"
+log_sys "качаем $URL"
+log "качаем образ, это займёт пару минут"
 curl -fsSL --max-time 900 --retry 2 "$URL" -o "$IMG" || die "образ не скачался" download_failed
 [ -s "$IMG" ] || die "образ пуст" download_failed
 

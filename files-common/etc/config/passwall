@@ -17,16 +17,19 @@ config global
         option localhost_proxy '1'
         option client_proxy '1'
         option acl_enable '0'
-        option log_tcp '1'
-        option log_udp '0'
+        option log_node '1'
         option loglevel 'warning'
         option trojan_loglevel '4'
         option log_chinadns_ng '0'
-        option tcp_node_socks_port '1080'
+        # Имена опций от 26.8.26: tcp_node стал node, udp_node убран,
+        # tcp_node_socks_port стал node_socks_port. Старые имена пакет
+        # переименовывает сам на первой загрузке (migrate_option в его
+        # uci-defaults), поэтому держим здесь уже новые — иначе всё, что
+        # читает конфиг, видит пустоту.
+        option node_socks_port '1080'
         option use_block_list '0'
         option v2ray_dns_mode 'udp'
-        option tcp_node 'fNDZDacw'
-        option udp_node 'fNDZDacw'
+        option node 'fNDZDacw'
         option use_proxy_list '0'
         option flush_set_on_reboot '1'
 
