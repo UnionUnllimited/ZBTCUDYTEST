@@ -23,33 +23,11 @@ else
     logger -t rc.local "openssl не отработал — пароль root не обновлён"
 fi
 
-# ── FRP конфиг с MAC ─────────────────────────────────────────────
-mkdir -p /etc/frp
-cat > /etc/frp/frpc.ini << EOF
-[common]
-server_addr = frp.pandora361.online
-server_port = 8443
-token = 21658aa79e70daf3a9e7ededa24855dcdf791a8606a4da6f8d7cb594513202d2
-login_fail_exit = false
-
-[luci${MAC}]
-type = stcp
-role = server
-use_encryption = true
-use_compression = false
-local_ip = 127.0.0.1
-local_port = 80
-sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
-
-[ssh${MAC}]
-type = stcp
-role = server
-use_encryption = true
-use_compression = false
-local_ip = 127.0.0.1
-local_port = 22
-sk = 27555c1d65fc7d8b4b26f95e6df64ec54b41246bd805fea4e0a96240568ea4fb
-EOF
+# ── FRP конфиг ────────────────────────────────────────────────
+# Генерация вынесена в titan_frpc_conf.sh — туда же ходит
+# frpc_watchdog.sh. Раньше конфиг собирался только здесь, то есть
+# только при загрузке, и повреждённый файл некому было починить.
+/usr/bin/titan_frpc_conf.sh --force
 
 /etc/init.d/frpc restart
 

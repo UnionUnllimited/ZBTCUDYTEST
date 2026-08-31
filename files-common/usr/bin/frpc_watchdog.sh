@@ -74,15 +74,29 @@ check_frpc() {
 }
 
 # ── Основная логика ──────────────────────────────────────────────
-# Сначала закрепление адреса: если запись сменилась, frpc всё равно надо
+# Сначала сам конфиг. Перезапускать frpc, не глядя на то, с чем он
+# запускается, бессмысленно: 31.08.2026 на стенде frpc.ini оказался
+# нулевого размера, frpc уходил на свои умолчания (0.0.0.0:7000), а
+# сторож восемь часов подряд перезапускал его в пустоту и рапортовал
+# «FRP всё ещё недоступен».
+CONF_REBUILT=0
+if [ -x /usr/bin/titan_frpc_conf.sh ]; then
+    /usr/bin/titan_frpc_conf.sh || CONF_REBUILT=1
+fi
+
+# Затем закрепление адреса: если запись сменилась, frpc всё равно надо
 # перезапускать — имя он разрешает один раз, при старте.
 PIN_CHANGED=0
 pin_frp_host || PIN_CHANGED=1
 
-if [ "$PIN_CHANGED" = 1 ] || ! check_frpc; then
-    [ "$PIN_CHANGED" = 1 ] \
-        && logger -t "$LOG_TAG" "адрес сервера обновлён — перезапускаем frpc" \
-        || logger -t "$LOG_TAG" "FRP недоступен — перезапускаем"
+if [ "$CONF_REBUILT" = 1 ] || [ "$PIN_CHANGED" = 1 ] || ! check_frpc; then
+    if [ "$CONF_REBUILT" = 1 ]; then
+        logger -t "$LOG_TAG" "конфиг был негоден и пересобран — перезапускаем frpc"
+    elif [ "$PIN_CHANGED" = 1 ]; then
+        logger -t "$LOG_TAG" "адрес сервера обновлён — перезапускаем frpc"
+    else
+        logger -t "$LOG_TAG" "FRP недоступен — перезапускаем"
+    fi
     /etc/init.d/frpc restart
     sleep 10
 
