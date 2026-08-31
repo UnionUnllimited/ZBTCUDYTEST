@@ -1,39 +1,15 @@
 #!/bin/sh
+#
+# Ничего не добавляйте сюда.
+#
+# /etc/rc.local перечислен в /lib/upgrade/keep.d, то есть sysupgrade его
+# сохраняет. На уже прошитом роутере он остаётся тем, с которым устройство
+# прошили первый раз, и никакая последующая прошивка его не меняет —
+# всё, что здесь написано, до парка не доедет.
+#
+# Поэтому вся загрузочная логика живёт в /usr/bin/titan_boot.sh: /usr/bin
+# в keep.d не входит и приезжает из образа целиком. Правьте там.
 
-# confdir из /etc/config/dhcp обязан существовать, иначе dnsmasq не
-# стартует вообще и валится в crash loop. Каталог держится на одном
-# файле atlanta.conf — если тот пропал, каталог исчезает вместе с ним.
-mkdir -p /etc/dnsmasq.d
-
-MAC=$(cat /sys/class/net/br-lan/address 2>/dev/null | tr -d ':' | tr 'A-F' 'a-f')
-if [ -z "$MAC" ]; then
-    logger -t rc.local "нет MAC br-lan — пароль и FRP не настроены"
-    exit 0
-fi
-
-# ── Пароль root по MAC ───────────────────────────────────────────
-# Сбой openssl не должен мешать настройке FRP: иначе роутер молча
-# останется без удалённого доступа, и заметить это будет нечем.
-PASS=$(printf '%stests' "$MAC" | sha256sum | cut -c1-16)
-HASH=$(openssl passwd -6 "$PASS" 2>/dev/null)
-if [ -n "$HASH" ]; then
-    sed -i "s|^root:[^:]*:|root:${HASH}:|" /etc/shadow
-    echo "$PASS" > /tmp/root_pass.txt
-else
-    logger -t rc.local "openssl не отработал — пароль root не обновлён"
-fi
-
-# ── FRP конфиг ────────────────────────────────────────────────
-# Генерация вынесена в titan_frpc_conf.sh — туда же ходит
-# frpc_watchdog.sh. Раньше конфиг собирался только здесь, то есть
-# только при загрузке, и повреждённый файл некому было починить.
-/usr/bin/titan_frpc_conf.sh --force
-
-/etc/init.d/frpc restart
-
-# Проверку таблицы nftables здесь не делаем.
-# Пробовали — фоновый блок с sleep не переживает завершения rc.local,
-# procd прибивает группу процессов. Сторож живёт в cron:
-# usr/bin/titan_pw_check.sh, раз в минуту.
+[ -x /usr/bin/titan_boot.sh ] && /usr/bin/titan_boot.sh
 
 exit 0
