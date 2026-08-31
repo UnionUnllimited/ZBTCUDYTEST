@@ -10,6 +10,12 @@
 # Поэтому вся загрузочная логика живёт в /usr/bin/titan_boot.sh: /usr/bin
 # в keep.d не входит и приезжает из образа целиком. Правьте там.
 
-[ -x /usr/bin/titan_boot.sh ] && /usr/bin/titan_boot.sh
+if [ -x /usr/bin/titan_boot.sh ]; then
+    /usr/bin/titan_boot.sh
+else
+    # Молчать тут нельзя: без titan_boot.sh роутер останется без пароля
+    # root и без удалённого доступа, а снаружи будет выглядеть здоровым.
+    logger -t rc.local "нет /usr/bin/titan_boot.sh — образ собран неполно"
+fi
 
 exit 0
