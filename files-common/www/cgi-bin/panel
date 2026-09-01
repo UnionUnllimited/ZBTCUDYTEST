@@ -543,31 +543,8 @@ ip rule add from 192.168.15.0/24 lookup main pref 48 2>/dev/null || true
 iptables-legacy -t mangle -I PREROUTING 1 -i br-guest -j RETURN 2>/dev/null || \
   iptables -t mangle -I PREROUTING 1 -i br-guest -j RETURN 2>/dev/null || true
 ip route add 192.168.15.0/24 dev br-guest 2>/dev/null || true
-# Восстанавливаем DNS фильтр если был включён родительский контроль
-if [ -f /etc/dnsmasq.d/guest-parental.conf ]; then
-  if command -v nft >/dev/null 2>&1 && nft list ruleset 2>/dev/null | grep -q 'inet fw4'; then
-    nft insert rule inet fw4 dstnat iifname "br-guest" udp dport 53 dnat to 77.88.8.7:53 2>/dev/null; true
-    nft insert rule inet fw4 dstnat iifname "br-guest" tcp dport 53 dnat to 77.88.8.7:53 2>/dev/null; true
-    for _doh in 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 9.9.9.9 149.112.112.112; do
-      nft insert rule inet fw4 forward iifname "br-guest" ip daddr "$_doh" tcp dport 443 drop 2>/dev/null; true
-    done
-    nft insert rule inet fw4 forward iifname "br-guest" udp dport 53 drop 2>/dev/null; true
-    nft insert rule inet fw4 forward iifname "br-guest" tcp dport 53 drop 2>/dev/null; true
-  else
-    iptables -t nat -D PREROUTING -i br-guest -p udp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null; true
-    iptables -t nat -D PREROUTING -i br-guest -p tcp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null; true
-    iptables -t nat -A PREROUTING -i br-guest -p udp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null; true
-    iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null; true
-    for _doh in 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 9.9.9.9 149.112.112.112; do
-      iptables -D FORWARD -i br-guest -d "$_doh" -p tcp --dport 443 -j DROP 2>/dev/null; true
-      iptables -I FORWARD -i br-guest -d "$_doh" -p tcp --dport 443 -j DROP 2>/dev/null; true
-    done
-    iptables -D FORWARD -i br-guest -p udp --dport 53 -j DROP 2>/dev/null; true
-    iptables -D FORWARD -i br-guest -p tcp --dport 53 -j DROP 2>/dev/null; true
-    iptables -I FORWARD -i br-guest -p udp --dport 53 -j DROP 2>/dev/null; true
-    iptables -I FORWARD -i br-guest -p tcp --dport 53 -j DROP 2>/dev/null; true
-  fi
-fi
+# DNS-фильтр родительского контроля живёт в /etc/nftables.d и
+# поднимается фаерволом сам — переставлять его здесь не нужно.
 HPLUG
   chmod +x /etc/hotplug.d/iface/30-guest-bypass 2>/dev/null || true
 }
@@ -617,56 +594,57 @@ _fw_backend(){
 }
 
 parental_apply_dns(){
-  _fwb="$(_fw_backend)"
-  if [ "$_fwb" = "nft" ]; then
-    # Удаляем старые правила (игнорируем ошибки если не было)
-    nft delete rule inet fw4 dstnat handle \
-      "$(nft -a list chain inet fw4 dstnat 2>/dev/null | awk '/br-guest.*dport 53/{print $NF}' | head -1)" 2>/dev/null || true
-    # DNS DNAT -> Yandex Family
-    nft insert rule inet fw4 dstnat iifname "br-guest" udp dport 53 dnat to 77.88.8.7:53 2>/dev/null || true
-    nft insert rule inet fw4 dstnat iifname "br-guest" tcp dport 53 dnat to 77.88.8.7:53 2>/dev/null || true
-    # Блокируем DoH и прямые DNS
-    for _doh in 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 9.9.9.9 149.112.112.112 208.67.222.222 208.67.220.220; do
-      nft insert rule inet fw4 forward iifname "br-guest" ip daddr "$_doh" tcp dport 443 drop 2>/dev/null || true
-    done
-    nft insert rule inet fw4 forward iifname "br-guest" udp dport 53 drop 2>/dev/null || true
-    nft insert rule inet fw4 forward iifname "br-guest" tcp dport 53 drop 2>/dev/null || true
-  else
-    # iptables fallback (OpenWrt < 23)
-    iptables -t nat -D PREROUTING -i br-guest -p udp --dport 53 -j REDIRECT --to-port 53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p tcp --dport 53 -j REDIRECT --to-port 53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p udp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p tcp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    iptables -t nat -A PREROUTING -i br-guest -p udp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    for _doh in 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 9.9.9.9 149.112.112.112 208.67.222.222 208.67.220.220; do
-      iptables -D FORWARD -i br-guest -d "$_doh" -p tcp --dport 443 -j DROP 2>/dev/null || true
-      iptables -I FORWARD -i br-guest -d "$_doh" -p tcp --dport 443 -j DROP 2>/dev/null || true
-    done
-    iptables -D FORWARD -i br-guest -p udp --dport 53 -j DROP 2>/dev/null || true
-    iptables -D FORWARD -i br-guest -p tcp --dport 53 -j DROP 2>/dev/null || true
-    iptables -I FORWARD -i br-guest -p udp --dport 53 -j DROP 2>/dev/null || true
-    iptables -I FORWARD -i br-guest -p tcp --dport 53 -j DROP 2>/dev/null || true
-  fi
+  # Пишем правила в /etc/nftables.d — fw4 подключает эту папку сам,
+  # поэтому фильтр переживает reload фаервола и перезагрузку роутера.
+  # Раньше правила ставились через nft insert и терялись на первом же
+  # reload, а половина из них вообще не создавалась.
+  cat > /etc/nftables.d/25-guest-parental.nft << 'PNFT'
+chain guest_parental_dnat {
+	type nat hook prerouting priority dstnat - 1; policy accept;
+	# В таблице inet семейство указывается явно: без "ip" nft отвечает
+	# "specify `dnat ip' or `dnat ip6'" и правило молча не создаётся.
+	iifname "br-guest" udp dport 53 counter dnat ip to 77.88.8.7:53
+	iifname "br-guest" tcp dport 53 counter dnat ip to 77.88.8.7:53
+}
+
+chain guest_parental_fwd {
+	type filter hook forward priority filter - 1; policy accept;
+	# Пропускаем то, что сами перенаправили строкой выше. Без этого
+	# запрет ниже рубит и семейный DNS, и гостевая сеть остаётся
+	# вообще без разрешения имён — «детский режим ломает интернет».
+	iifname "br-guest" ip daddr 77.88.8.7 udp dport 53 counter accept
+	iifname "br-guest" ip daddr 77.88.8.7 tcp dport 53 counter accept
+	# Всё остальное на 53 порт — мимо фильтра, включая IPv6.
+	iifname "br-guest" udp dport 53 counter drop
+	iifname "br-guest" tcp dport 53 counter drop
+	# Публичные DoH-резолверы: через них фильтр тоже обходится.
+	iifname "br-guest" ip daddr { 8.8.8.8, 8.8.4.4, 1.1.1.1, 1.0.0.1,
+	                              9.9.9.9, 149.112.112.112,
+	                              208.67.222.222, 208.67.220.220,
+	                              94.140.14.14, 94.140.15.15 } tcp dport 443 counter drop
+}
+PNFT
+  _parental_drop_chains
+  /etc/init.d/firewall reload >/dev/null 2>&1 || true
   touch /etc/dnsmasq.d/guest-parental.conf 2>/dev/null || true
 }
 
 parental_remove_dns(){
   rm -f /etc/dnsmasq.d/guest-parental.conf 2>/dev/null || true
-  _fwb="$(_fw_backend)"
-  if [ "$_fwb" = "nft" ]; then
-    /etc/init.d/firewall reload 2>/dev/null || true
-  else
-    iptables -t nat -D PREROUTING -i br-guest -p udp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p tcp --dport 53 -j DNAT --to-destination 77.88.8.7:53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p udp --dport 53 -j REDIRECT --to-port 53 2>/dev/null || true
-    iptables -t nat -D PREROUTING -i br-guest -p tcp --dport 53 -j REDIRECT --to-port 53 2>/dev/null || true
-    for _doh_ip in 8.8.8.8 8.8.4.4 1.1.1.1 1.0.0.1 9.9.9.9 149.112.112.112 208.67.222.222 208.67.220.220; do
-      iptables -D FORWARD -i br-guest -d "$_doh_ip" -p tcp --dport 443 -j DROP 2>/dev/null || true
-    done
-    iptables -D FORWARD -i br-guest -p udp --dport 53 -j DROP 2>/dev/null || true
-    iptables -D FORWARD -i br-guest -p tcp --dport 53 -j DROP 2>/dev/null || true
-  fi
+  rm -f /etc/nftables.d/25-guest-parental.nft 2>/dev/null || true
+  # fw4 reload не удаляет базовые цепочки, которых больше нет в
+  # include: файл исчезает, а фильтр продолжает работать. Снимаем их
+  # явно. flush перед delete — базовую цепочку с правилами часть
+  # версий nft удалять отказывается.
+  _parental_drop_chains
+  /etc/init.d/firewall reload >/dev/null 2>&1 || true
+}
+
+_parental_drop_chains(){
+  for _ch in guest_parental_dnat guest_parental_fwd; do
+    nft flush chain inet fw4 "$_ch" 2>/dev/null || true
+    nft delete chain inet fw4 "$_ch" 2>/dev/null || true
+  done
 }
 
 parental_apply_blocklist(){
