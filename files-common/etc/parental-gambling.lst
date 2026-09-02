@@ -1,0 +1,96 @@
+# Азартные игры и ставки — для детского режима.
+#
+# Yandex Family закрывает только категорию 18+, казино в неё не входит,
+# поэтому список свой. dnsmasq перекрывает домен вместе со всеми
+# поддоменами, так что www и зеркала вида m.<домен> тоже попадают.
+#
+# Это стартовый набор известных брендов. Зеркала меняются постоянно,
+# поэтому список стоит завести на своём зеркале списков рядом с
+# остальными и обновлять по расписанию, как chnlist.
+
+# ── Букмекеры ────────────────────────────────────────────────────
+1xbet.com
+1xbet.kz
+1xstavka.ru
+melbet.com
+melbet.ru
+mostbet.com
+mostbet.ru
+betcity.ru
+fonbet.ru
+fon.bet
+marathonbet.ru
+marathonbet.com
+leon.ru
+leonbets.com
+olimp.bet
+olimpbet.kz
+winline.ru
+ligastavok.ru
+zenit.win
+betboom.ru
+pari.ru
+parimatch.com
+parimatch.ru
+bet365.com
+bwin.com
+unibet.com
+williamhill.com
+ggbet.com
+pin-up.bet
+pin-up.ru
+pinup.ru
+tennisi.bet
+baltbet.ru
+bettery.ru
+astrabet.ru
+
+# ── Казино и слоты ───────────────────────────────────────────────
+1win.com
+1win.ru
+vavada.com
+vavadacom.com
+joycasino.com
+casino-x.com
+azino777.com
+riobet.com
+playfortuna.com
+vulkan-casino.com
+vulkanplatinum.com
+vulkanroyal.com
+booicasino.com
+frank-casino.com
+sol-casino.com
+jet-casino.com
+rox-casino.com
+izzi-casino.com
+drip-casino.com
+champion-casino.com
+selector-casino.com
+starda-casino.com
+kent-casino.com
+irwin-casino.com
+gama-casino.com
+lex-casino.com
+monro-casino.com
+fresh-casino.com
+slotozal.com
+admiralx.com
+777originals.com
+
+# ── Покер ────────────────────────────────────────────────────────
+pokerstars.com
+pokerstars.ru
+ggpoker.com
+partypoker.com
+888poker.com
+redstarpoker.eu
+pokerdom.com
+
+# ── Лотереи и агрегаторы ─────────────────────────────────────────
+stoloto.ru
+lotteru.com
+casino.ru
+casinoz.club
+slotcatalog.com
+askgamblers.com

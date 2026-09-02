@@ -426,14 +426,50 @@ guest_enable(){
   uci -q delete network.guest.ifname 2>/dev/null || true
   uci -q commit network 2>/dev/null || true
 
-  # ── DHCP ───────────────────────────────────────────────────
+  # ── DHCP и отдельный dnsmasq для гостей ────────────────────
+  # Гостевую сеть обслуживает свой экземпляр dnsmasq. Без него
+  # родительский контроль не может ничего заблокировать: у основного
+  # dnsmasq общий конфиг с домашней сетью, а свои апстримы и списки
+  # нужны только гостям.
   uci -q set dhcp.guest=dhcp
   uci -q set dhcp.guest.interface='guest'
   uci -q set dhcp.guest.start='100'
   uci -q set dhcp.guest.limit='50'
   uci -q set dhcp.guest.leasetime='1h'
+  uci -q set dhcp.guest.instance='guestdns'
   uci -q delete dhcp.guest.dhcp_option 2>/dev/null || true
+
+  # Основной dnsmasq перестаёт слушать гостевой мост, иначе два
+  # экземпляра дерутся за порт 53 и один из них не поднимается.
+  uci -q del_list dhcp.@dnsmasq[0].notinterface='guest' 2>/dev/null || true
+  uci -q add_list dhcp.@dnsmasq[0].notinterface='guest'
+
+  uci -q delete dhcp.guestdns 2>/dev/null || true
+  uci -q set dhcp.guestdns=dnsmasq
+  uci -q set dhcp.guestdns.domainneeded='1'
+  uci -q set dhcp.guestdns.boguspriv='1'
+  uci -q set dhcp.guestdns.localise_queries='1'
+  uci -q set dhcp.guestdns.authoritative='1'
+  uci -q set dhcp.guestdns.cachesize='500'
+  uci -q set dhcp.guestdns.leasefile='/tmp/dhcp.guest.leases'
+  # Апстрим только семейный Яндекс, провайдерские DNS не берём.
+  uci -q set dhcp.guestdns.noresolv='1'
+  uci -q add_list dhcp.guestdns.server='77.88.8.7'
+  uci -q add_list dhcp.guestdns.server='77.88.8.3'
+  # Роутер сам этим резолвером не пользуется — только гости.
+  uci -q set dhcp.guestdns.localuse='0'
+  uci -q set dhcp.guestdns.localservice='0'
+  uci -q add_list dhcp.guestdns.interface='guest'
+  # Loopback обязателен в исключениях: иначе гостевой экземпляр
+  # займёт 127.0.0.1:53 и основной dnsmasq не запустится, а домашняя
+  # сеть останется без DNS.
+  uci -q add_list dhcp.guestdns.notinterface='loopback'
+  # Сюда родительский контроль кладёт свои списки.
+  uci -q set dhcp.guestdns.confdir='/etc/dnsmasq-guest.d'
+  mkdir -p /etc/dnsmasq-guest.d
+
   uci -q commit dhcp 2>/dev/null || true
+  /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
 
   # ── Firewall: зона guest + форвардинг в wan + NAT ──────────
   uci -q delete firewall.guest_zone 2>/dev/null || true
@@ -554,6 +590,8 @@ guest_disable(){
   uci -q delete wireless.guest_radio1 2>/dev/null || true
   uci -q commit wireless 2>/dev/null || true
   uci -q delete dhcp.guest 2>/dev/null || true
+  uci -q delete dhcp.guestdns 2>/dev/null || true
+  uci -q del_list dhcp.@dnsmasq[0].notinterface='guest' 2>/dev/null || true
   uci -q commit dhcp 2>/dev/null || true
   uci -q delete firewall.guest_zone 2>/dev/null || true
   uci -q delete firewall.guest_fwd 2>/dev/null || true
@@ -578,7 +616,9 @@ guest_disable(){
 }
 
 # ─── Родительский контроль ──────────────────────────────────────
-PARENTAL_CONF="/etc/dnsmasq.d/atl_parental.conf"
+PARENTAL_CONF="/etc/dnsmasq-guest.d/atl_parental.conf"
+PARENTAL_GAMBLING="/etc/dnsmasq-guest.d/atl_gambling.conf"
+GAMBLING_SRC="/etc/parental-gambling.lst"
 PARENTAL_CRON="/etc/crontabs/atl_parental"
 PARENTAL_CFG_KEY="atl_parental"
 
@@ -600,24 +640,39 @@ parental_apply_dns(){
   # reload, а половина из них вообще не создавалась.
   cat > /etc/nftables.d/25-guest-parental.nft << 'PNFT'
 chain guest_parental_dnat {
-	type nat hook prerouting priority dstnat - 1; policy accept;
-	# В таблице inet семейство указывается явно: без "ip" nft отвечает
-	# "specify `dnat ip' or `dnat ip6'" и правило молча не создаётся.
-	iifname "br-guest" udp dport 53 counter dnat ip to 77.88.8.7:53
-	iifname "br-guest" tcp dport 53 counter dnat ip to 77.88.8.7:53
+	# PassWall перехватывает весь DNS цепочкой PSW_DNS с приоритетом
+	# dstnat - 1. При равном приоритете побеждает та цепочка, что
+	# создалась раньше, то есть как повезёт после перезагрузки. Берём
+	# запас, иначе детский фильтр работает через раз.
+	type nat hook prerouting priority dstnat - 5; policy accept;
+	# Весь DNS гостей заворачиваем на сам роутер: его обслуживает
+	# отдельный dnsmasq, который применяет наши блокировки и только
+	# потом идёт в Yandex Family. Раньше запросы уходили сразу в Яндекс,
+	# минуя dnsmasq, и поле «Блокировать сайты» не работало вообще.
+	# В таблице inet семейство указывается явно, иначе nft отвечает
+	# "specify `dnat ip'" и правило молча не создаётся.
+	iifname "br-guest" udp dport 53 counter dnat ip to 192.168.15.1:53
+	iifname "br-guest" tcp dport 53 counter dnat ip to 192.168.15.1:53
+}
+
+chain guest_parental_out {
+	# Запросы гостевого dnsmasq наверх идут от самого роутера, и их
+	# PassWall тоже перехватывает. Пустой DNAT «сам в себя» занимает
+	# NAT-слот соединения, после чего перехват уже не срабатывает.
+	type nat hook output priority filter - 5; policy accept;
+	ip daddr 77.88.8.7 udp dport 53 counter dnat ip to 77.88.8.7:53
+	ip daddr 77.88.8.3 udp dport 53 counter dnat ip to 77.88.8.3:53
+	ip daddr 192.168.15.1 udp dport 53 counter dnat ip to 192.168.15.1:53
 }
 
 chain guest_parental_fwd {
-	type filter hook forward priority filter - 1; policy accept;
-	# Пропускаем то, что сами перенаправили строкой выше. Без этого
-	# запрет ниже рубит и семейный DNS, и гостевая сеть остаётся
-	# вообще без разрешения имён — «детский режим ломает интернет».
+	type filter hook forward priority filter - 5; policy accept;
+	# Страховка, если DNS всё же ушёл мимо заворота выше.
 	iifname "br-guest" ip daddr 77.88.8.7 udp dport 53 counter accept
 	iifname "br-guest" ip daddr 77.88.8.7 tcp dport 53 counter accept
-	# Всё остальное на 53 порт — мимо фильтра, включая IPv6.
 	iifname "br-guest" udp dport 53 counter drop
 	iifname "br-guest" tcp dport 53 counter drop
-	# Публичные DoH-резолверы: через них фильтр тоже обходится.
+	# Публичные DoH-резолверы: через них фильтр обходится в один клик.
 	iifname "br-guest" ip daddr { 8.8.8.8, 8.8.4.4, 1.1.1.1, 1.0.0.1,
 	                              9.9.9.9, 149.112.112.112,
 	                              208.67.222.222, 208.67.220.220,
@@ -626,6 +681,11 @@ chain guest_parental_fwd {
 PNFT
   _parental_drop_chains
   /etc/init.d/firewall reload >/dev/null 2>&1 || true
+  # Панель обещает «18+, казино, нежелательный контент». За 18+ отвечает
+  # Yandex Family, за казино — наш список: у семейного Яндекса такой
+  # категории нет.
+  parental_apply_gambling
+  /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
   touch /etc/dnsmasq.d/guest-parental.conf 2>/dev/null || true
 }
 
@@ -636,35 +696,51 @@ parental_remove_dns(){
   # include: файл исчезает, а фильтр продолжает работать. Снимаем их
   # явно. flush перед delete — базовую цепочку с правилами часть
   # версий nft удалять отказывается.
+  rm -f "$PARENTAL_GAMBLING" 2>/dev/null || true
   _parental_drop_chains
   /etc/init.d/firewall reload >/dev/null 2>&1 || true
+  /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
 }
 
 _parental_drop_chains(){
-  for _ch in guest_parental_dnat guest_parental_fwd; do
+  for _ch in guest_parental_dnat guest_parental_out guest_parental_fwd; do
     nft flush chain inet fw4 "$_ch" 2>/dev/null || true
     nft delete chain inet fw4 "$_ch" 2>/dev/null || true
   done
 }
 
 parental_apply_blocklist(){
-  # Список доменов пишем в dnsmasq конфиг
+  # Пишем в конфиг ГОСТЕВОГО dnsmasq: только он обслуживает
+  # br-guest, а родительский контроль действует лишь на гостевую сеть.
   DOMAINS="$1"
-  mkdir -p /etc/dnsmasq.d
-  # Очищаем старые записи блокировки
-  [ -f "$PARENTAL_CONF" ] && grep -v "^address=/" "$PARENTAL_CONF" > /tmp/parental_tmp.$$ 2>/dev/null && mv /tmp/parental_tmp.$$ "$PARENTAL_CONF" || true
-  # Добавляем новые
-  printf "%s" "$DOMAINS" | tr ',' '
-' | tr ';' '
-' | tr ' ' '
-' | while IFS= read -r dom; do
-    dom="$(printf "%s" "$dom" | tr -d '
- ' | sed 's|https\?://||;s|/.*||')"
+  mkdir -p /etc/dnsmasq-guest.d
+  : > "$PARENTAL_CONF"
+  printf "%s" "$DOMAINS" | tr ',;' '\n\n' | tr ' ' '\n' | while IFS= read -r dom; do
+    dom="$(printf "%s" "$dom" | tr -d '\r\n ' | sed 's|https\?://||;s|/.*||')"
     [ -n "$dom" ] || continue
-    printf 'address=/%s/#
-' "$dom" >> "$PARENTAL_CONF"
+    # Нужны обе строки: 0.0.0.0 закрывает только A-запись, и сайт
+    # спокойно открывается по IPv6. Форма address=/дом/# , которая
+    # стояла раньше, не блокирует вообще ничего.
+    printf 'address=/%s/0.0.0.0\n' "$dom" >> "$PARENTAL_CONF"
+    printf 'address=/%s/::\n'      "$dom" >> "$PARENTAL_CONF"
   done
-  /etc/init.d/dnsmasq reload >/dev/null 2>&1 || true
+  # Именно restart: reload перечитывает только hosts и аренды,
+  # изменения в conf-dir он не видит.
+  /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
+}
+
+parental_apply_gambling(){
+  # Казино и ставки. Yandex Family закрывает только 18+, эта категория
+  # в него не входит, поэтому список свой.
+  mkdir -p /etc/dnsmasq-guest.d
+  : > "$PARENTAL_GAMBLING"
+  [ -f "$GAMBLING_SRC" ] || return 0
+  grep -vE '^[[:space:]]*(#|$)' "$GAMBLING_SRC" 2>/dev/null | while IFS= read -r dom; do
+    dom="$(printf "%s" "$dom" | tr -d '\r\n ')"
+    [ -n "$dom" ] || continue
+    printf 'address=/%s/0.0.0.0\n' "$dom" >> "$PARENTAL_GAMBLING"
+    printf 'address=/%s/::\n'      "$dom" >> "$PARENTAL_GAMBLING"
+  done
 }
 
 parental_apply_schedule(){
