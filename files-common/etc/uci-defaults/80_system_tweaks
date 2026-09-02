@@ -11,6 +11,24 @@ uci commit network
 /etc/init.d/odhcpd stop 2>/dev/null
 
 # ── Flow offloading ─────────────────────────────
+# Выключено намеренно и включать нельзя — ломает PassWall.
+#
+# Ускорение уводит установленные соединения во flowtable, и дальнейшие
+# пакеты идут мимо netfilter. А вся маршрутизация PassWall на этом
+# netfilter и держится: UDP заворачивается через tproxy, пакетам
+# ставится метка 0x50535731, и по ней правило `from all fwmark
+# 0x50535731 lookup 999` уводит их в отдельную таблицу. Пакет, ушедший
+# во flowtable, метку не получает — соединение либо утекает напрямую
+# мимо туннеля, либо встаёт.
+#
+# Аппаратное хуже программного: на filogic NAT целиком уезжает в PPE и
+# для netfilter становится невидимым.
+#
+# Тем же путём обходился бы и родительский контроль: правила
+# guest_parental_* живут в цепочках fw4, и offload их пропустил бы.
+#
+# Плата за это — маршрутизация направо идёт процессором. На нагрузке
+# смотреть titan_loadwatch.sh, а не возвращать offload.
 uci set firewall.@defaults[0].flow_offloading='0'
 uci set firewall.@defaults[0].flow_offloading_hw='0'
 uci commit firewall
