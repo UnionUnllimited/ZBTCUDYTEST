@@ -42,6 +42,13 @@ UPTIME="$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)"
 # дошёл до правил. Создаст сам, и создаст правильно.
 nft list table inet passwall >/dev/null 2>&1 || exit 0
 
+# Заодно дёргаем проверку списков маршрутизации. Она отдельным файлом,
+# но своей строки в cron у неё быть не может: /etc/crontabs сохраняется
+# при sysupgrade, и новые задания до уже проданных роутеров не доезжают.
+# А этот скрипт в кроне у всех и приходит из образа. Сама проверка в
+# обычном случае стоит одного [ -f ] и сразу выходит.
+[ -x /usr/bin/titan_rules_check.sh ] && /usr/bin/titan_rules_check.sh
+
 for chain in dstnat mangle_prerouting mangle_output nat_output; do
     if ! nft list chain inet passwall "$chain" >/dev/null 2>&1; then
         logger -t "$LOG_TAG" "нет цепочки $chain — таблица без хуков, чиним"

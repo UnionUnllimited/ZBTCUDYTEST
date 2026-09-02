@@ -61,7 +61,7 @@ rm -f /etc/crontabs/atl_parental /etc/hotplug.d/iface/30-guest-bypass 2>/dev/nul
 # dnsmasq, привязанный к уже удалённой сети guest, — а такой экземпляр
 # уже однажды занял 127.0.0.1:53 и не дал подняться основному.
 rm -f /etc/nftables.d/25-guest-parental.nft 2>/dev/null
-rm -rf /etc/dnsmasq-guest.d 2>/dev/null
+rm -rf /etc/dnsmasq.d/guest 2>/dev/null
 uci -q delete dhcp.guestdns
 uci -q del_list dhcp.@dnsmasq[0].notinterface='guest'
 if [ -f /etc/crontabs/root ] && grep -q atl_parental /etc/crontabs/root 2>/dev/null; then

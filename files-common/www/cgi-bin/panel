@@ -507,8 +507,13 @@ guest_enable(){
   # сеть останется без DNS.
   uci -q add_list dhcp.guestdns.notinterface='loopback'
   # Сюда родительский контроль кладёт свои списки.
-  uci -q set dhcp.guestdns.confdir='/etc/dnsmasq-guest.d'
-  mkdir -p /etc/dnsmasq-guest.d
+  # Каталог именно внутри /etc/dnsmasq.d: пакет dnsmasq сохраняет
+  # его целиком при обновлении прошивки (keep.d), а свой каталог
+  # рядом стирался — списки блокировок пропадали, при том что
+  # маркер режима переживал и панель показывала фильтр включённым.
+  # Основной экземпляр подкаталог не читает: conf-dir не рекурсивен.
+  uci -q set dhcp.guestdns.confdir='/etc/dnsmasq.d/guest'
+  mkdir -p /etc/dnsmasq.d/guest
 
   uci -q commit dhcp 2>/dev/null || true
   /etc/init.d/dnsmasq restart >/dev/null 2>&1 || true
@@ -658,8 +663,8 @@ guest_disable(){
 }
 
 # ─── Родительский контроль ──────────────────────────────────────
-PARENTAL_CONF="/etc/dnsmasq-guest.d/atl_parental.conf"
-PARENTAL_GAMBLING="/etc/dnsmasq-guest.d/atl_gambling.conf"
+PARENTAL_CONF="/etc/dnsmasq.d/guest/atl_parental.conf"
+PARENTAL_GAMBLING="/etc/dnsmasq.d/guest/atl_gambling.conf"
 GAMBLING_SRC="/etc/parental-gambling.lst"
 # Раньше здесь был /etc/crontabs/atl_parental. Busybox crond считает имя
 # файла именем пользователя и такой файл просто пропускает — в логе
@@ -761,7 +766,7 @@ parental_apply_blocklist(){
   # Пишем в конфиг ГОСТЕВОГО dnsmasq: только он обслуживает
   # br-guest, а родительский контроль действует лишь на гостевую сеть.
   DOMAINS="$1"
-  mkdir -p /etc/dnsmasq-guest.d
+  mkdir -p /etc/dnsmasq.d/guest
   : > "$PARENTAL_CONF"
   # "|| [ -n "$dom" ]" обязателен: read возвращает ненулевой код на
   # последней строке без перевода, и без него тело цикла для неё не
@@ -783,7 +788,7 @@ parental_apply_blocklist(){
 parental_apply_gambling(){
   # Казино и ставки. Yandex Family закрывает только 18+, эта категория
   # в него не входит, поэтому список свой.
-  mkdir -p /etc/dnsmasq-guest.d
+  mkdir -p /etc/dnsmasq.d/guest
   : > "$PARENTAL_GAMBLING"
   [ -f "$GAMBLING_SRC" ] || return 0
   grep -vE '^[[:space:]]*(#|$)' "$GAMBLING_SRC" 2>/dev/null | while IFS= read -r dom || [ -n "$dom" ]; do
