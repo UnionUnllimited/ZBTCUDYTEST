@@ -434,6 +434,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
   <div class="card">
     <h3>🔴 Забыл пароль от панели</h3>
     <p>Зажмите <b>Reset</b> на 3+ секунды. Пароль панели сбросится до <b>admin/admin</b>, пароль Wi-Fi — до заводского <b>11111118</b>.</p>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Сброс заодно стирает настройки провайдера и гостевую сеть. Если интернет у вас по логину и паролю, приготовьте договор.</div></div>
   </div>
   <div class="card">
     <h3>🔴 Роутер завис</h3>
@@ -488,7 +489,7 @@ body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacS
       <div class="wifi-row"><span class="wifi-key">Пароль Wi-Fi после сброса</span><span class="wifi-val">11111118</span></div>
       <div class="wifi-row"><span class="wifi-key">Логин/пароль панели</span><span class="wifi-val">admin / admin</span></div>
     </div>
-    <div class="tip"><div>💡</div><div>Сброс не удаляет подписку и настройки провайдера — только Wi-Fi и пароль панели.</div></div>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div><b>Подписка сохраняется</b>, но настройки подключения к провайдеру <b>стираются</b>. Если у вас PPPoE, L2TP, PPTP или статический IP — держите договор под рукой, эти данные придётся ввести заново. При DHCP вводить ничего не нужно. Выбранный сервер VPN тоже вернётся на автоматический.</div></div>
   </div>
 </div>
 <div class="divider"></div>

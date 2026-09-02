@@ -49,9 +49,27 @@ uci -q commit passwall
 uci -q delete wireless.guest_radio0
 uci -q delete wireless.guest_radio1
 uci -q delete network.guest
+uci -q delete network.guest_dev
 uci -q delete dhcp.guest
 rm -f /etc/dnsmasq.d/guest-parental.conf /etc/dnsmasq.d/atl_parental.conf 2>/dev/null
 rm -f /etc/crontabs/atl_parental /etc/hotplug.d/iface/30-guest-bypass 2>/dev/null
+
+# Родительский контроль переехал: правила теперь в /etc/nftables.d,
+# которые подхватывает fw4 сам, списки — в конфиге отдельного dnsmasq
+# для гостевой сети, расписание — в общем файле заданий cron. Без
+# уборки здесь заводской сброс оставлял бы за собой второй экземпляр
+# dnsmasq, привязанный к уже удалённой сети guest, — а такой экземпляр
+# уже однажды занял 127.0.0.1:53 и не дал подняться основному.
+rm -f /etc/nftables.d/25-guest-parental.nft 2>/dev/null
+rm -rf /etc/dnsmasq-guest.d 2>/dev/null
+uci -q delete dhcp.guestdns
+uci -q del_list dhcp.@dnsmasq[0].notinterface='guest'
+if [ -f /etc/crontabs/root ] && grep -q atl_parental /etc/crontabs/root 2>/dev/null; then
+  # Временный файл рядом с целевым: mv через границу файловых систем
+  # копирует и удаляет, и обрыв на середине оставил бы крон обрезанным.
+  grep -v atl_parental /etc/crontabs/root > /etc/crontabs/root.reset 2>/dev/null || :
+  mv /etc/crontabs/root.reset /etc/crontabs/root 2>/dev/null || rm -f /etc/crontabs/root.reset 2>/dev/null
+fi
 
 # ── Wi-Fi: заводское состояние, как после первой прошивки ────────
 # Пароль, а не открытая сеть. Открытая в паре с вычислимым по MAC
