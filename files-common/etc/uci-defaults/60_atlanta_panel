@@ -150,12 +150,18 @@ fi
 # до работающих роутеров не доедет — приводим к нужному виду здесь.
 # Установщик идёт под set -e, а uci на отсутствующей секции возвращает
 # ошибку — отсюда || true на каждой записи.
-LISTS_BASE="https://vbotrouters.titanvps.click/lists"
+#
+# Схема маршрутизации перевёрнута относительно того, как эти списки
+# называются в PassWall. Весь трафик идёт НАПРЯМУЮ, а в туннель уходит
+# только то, что перечислено. Для этого chn_list переключён в режим
+# proxy, и chnlist с chnroute содержат не «китайские» адреса, а наши
+# прокси-списки. gfwlist при этом не используется вовсе.
+LISTS_BASE="https://titanvps.pro/lists"
 LISTS_FIXED=0
 URLS_FIXED=0
 for _pair in \
-  "chnlist_url=$LISTS_BASE/direct-domains.lst" \
-  "chnroute_url=$LISTS_BASE/direct-ip.lst" \
+  "chnlist_url=$LISTS_BASE/proxy-domains.lst" \
+  "chnroute_url=$LISTS_BASE/proxy-ip.lst" \
   "gfwlist_url=$LISTS_BASE/proxy-domains.lst"
 do
   _opt="${_pair%%=*}"
@@ -169,10 +175,20 @@ do
   fi
 done
 
-# Флаги: gfwlist качаем и применяем, Direct List выключен.
+# Флаги под ту же схему: решает chnlist в режиме proxy, gfwlist и
+# Direct List выключены — иначе их правила сработали бы раньше и
+# перекрыли бы наш список.
+#
+# chnlist_update раньше стоял в 0, и список доменов не обновлялся
+# вообще: на стенде он застыл на дате прошивки, а новые домены до
+# роутеров не доезжали никогда. Адреса сетей при этом обновлялись,
+# из-за чего расхождение было незаметным.
 for _pair in \
+  "global:chn_list:proxy" \
+  "global_rules:chnlist_update:1" \
+  "global_rules:chnroute_update:1" \
   "global_rules:gfwlist_update:1" \
-  "global:use_gfw_list:1" \
+  "global:use_gfw_list:0" \
   "global:use_direct_list:0"
 do
   _sec="@$(echo "$_pair" | cut -d: -f1)[0]"
