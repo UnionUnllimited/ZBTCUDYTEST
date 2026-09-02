@@ -946,10 +946,37 @@ run_ping_checks(){
 
 MAC="$(cat /sys/class/net/br-lan/address 2>/dev/null | tr '[:lower:]' '[:upper:]' || echo N/A)"
 
+# Каждая из трёх строк раньше поднимала цепочку printf|tr|sed|head|
+# urldecode — около пятнадцати процессов на КАЖДЫЙ запрос к панели,
+# включая опрос статуса из браузера раз в несколько секунд. Разбор
+# делается средствами самого шелла, без единого форка, а декодирование
+# запускается только для значений, где реально есть %XX или плюс:
+# у action их не бывает никогда, у m и e — только когда redir передал
+# сообщение.
 QS="${QUERY_STRING:-}"
-GET_M="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^m=//p' | head -n1 | urldecode 2>/dev/null || true)"
-GET_E="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^e=//p' | head -n1 | urldecode 2>/dev/null || true)"
-GET_ACT="$(printf "%s" "$QS" | tr '&' '\n' | sed -n 's/^action=//p' | head -n1 | urldecode 2>/dev/null || true)"
+GET_M="" GET_E="" GET_ACT=""
+if [ -n "$QS" ]; then
+  # set -f — по той же причине, что и в разборе POST: значение со
+  # звёздочкой иначе раскроется по именам файлов.
+  _qs_ifs="$IFS"; IFS="&"; set -f; set -- $QS; set +f; IFS="$_qs_ifs"
+  for _qp in "$@"; do
+    # Первое вхождение выигрывает — так же, как делал head -n1.
+    case "$_qp" in
+      m=*)      [ -n "$GET_M" ]   || GET_M="${_qp#m=}" ;;
+      e=*)      [ -n "$GET_E" ]   || GET_E="${_qp#e=}" ;;
+      action=*) [ -n "$GET_ACT" ] || GET_ACT="${_qp#action=}" ;;
+    esac
+  done
+fi
+case "$GET_M" in
+  *%*|*+*) GET_M="$(printf "%s" "$GET_M" | urldecode 2>/dev/null || true)" ;;
+esac
+case "$GET_E" in
+  *%*|*+*) GET_E="$(printf "%s" "$GET_E" | urldecode 2>/dev/null || true)" ;;
+esac
+case "$GET_ACT" in
+  *%*|*+*) GET_ACT="$(printf "%s" "$GET_ACT" | urldecode 2>/dev/null || true)" ;;
+esac
 
 MSG="${GET_M:-}"; ERR="${GET_E:-}"
 
