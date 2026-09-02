@@ -190,14 +190,20 @@ redir(){
 }
 
 detect_wan_iface(){
-  if uci -q show firewall >/dev/null 2>&1; then
-    IFACE="$(uci -q show firewall | awk -F"'" '
-      BEGIN{z=0}
-      /^config zone/{z=0}
-      /option name '\''wan'\''/{z=1}
-      z==1 && /list network/{print $2; exit}
-    ')"
-    [ -n "${IFACE:-}" ] && { echo "$IFACE"; return 0; }
+  # Здесь стоял разбор вывода `uci show` шаблоном под формат
+  # `uci export`: искались строки «config zone», «option name 'wan'»
+  # и «list network», которых в выводе show не бывает. Совпадений не
+  # случалось ни разу, функция всегда доходила до запасного «wan», а
+  # два лишних процесса тратились на каждый вызов.
+  #
+  # Читаем зоны так, как их отдаёт uci show, и только если нужной
+  # секции нет — возвращаем общепринятое имя.
+  _z="$(uci -q show firewall 2>/dev/null | sed -n "s/^firewall\.\(@zone\[[0-9]*\]\)\.name='wan'$/\1/p" | head -n1)"
+  if [ -n "${_z:-}" ]; then
+    _n="$(uci -q get "firewall.${_z}.network" 2>/dev/null || true)"
+    # В зоне может быть перечислено несколько сетей — берём первую.
+    _n="${_n%% *}"
+    [ -n "${_n:-}" ] && { echo "$_n"; return 0; }
   fi
   echo "wan"
 }
@@ -799,9 +805,19 @@ parental_apply_schedule(){
   is_hhmm "$TIME_ON"  || return 1
   H_OFF="${TIME_OFF%%:*}"; M_OFF="${TIME_OFF##*:}"
   H_ON="${TIME_ON%%:*}";   M_ON="${TIME_ON##*:}"
-  # Удаляем старые cron-задачи
+  # Удаляем старые cron-задачи.
+  # Временный файл кладём РЯДОМ с целевым, а не в /tmp: mv через
+  # границу файловых систем копирует и удаляет, и обрыв питания на
+  # середине оставит общий крон обрезанным — без сторожей, обновлений
+  # и еженедельной перезагрузки. В пределах /etc/crontabs это rename,
+  # то есть атомарная замена.
   touch "$PARENTAL_CRON"
-  grep -v "atl_parental" "$PARENTAL_CRON" > /tmp/cron_tmp.$$ 2>/dev/null && mv /tmp/cron_tmp.$$ "$PARENTAL_CRON" || true
+  _ctmp="${PARENTAL_CRON}.new.$$"
+  # Код возврата grep игнорируем намеренно: единица означает лишь, что
+  # не осталось ни одной посторонней строки, и пустой результат — это
+  # верный результат.
+  grep -v "atl_parental" "$PARENTAL_CRON" > "$_ctmp" 2>/dev/null || :
+  mv "$_ctmp" "$PARENTAL_CRON" 2>/dev/null || { rm -f "$_ctmp" 2>/dev/null || :; return 1; }
   # Добавляем новые
   echo "$M_OFF $H_OFF * * * nft insert rule inet fw4 forward iifname br-guest drop 2>/dev/null || iptables -I FORWARD -i br-guest -j DROP # atl_parental" >> "$PARENTAL_CRON"
   echo "$M_ON  $H_ON  * * * /etc/init.d/firewall reload 2>/dev/null || iptables -D FORWARD -i br-guest -j DROP 2>/dev/null; true # atl_parental" >> "$PARENTAL_CRON"
@@ -814,8 +830,11 @@ parental_remove_schedule(){
   # роутера, и вместе с расписанием исчезли бы все сторожа и обновления.
   # Убираем только свои строки, помеченные atl_parental.
   if [ -f "$PARENTAL_CRON" ]; then
-    grep -v "atl_parental" "$PARENTAL_CRON" > /tmp/cron_tmp.$$ 2>/dev/null \
-      && mv /tmp/cron_tmp.$$ "$PARENTAL_CRON" || rm -f /tmp/cron_tmp.$$ 2>/dev/null
+    # Та же атомарность, что и при включении: временный файл рядом с
+    # целевым, код возврата grep не влияет на то, применять ли замену.
+    _ctmp="${PARENTAL_CRON}.new.$$"
+    grep -v "atl_parental" "$PARENTAL_CRON" > "$_ctmp" 2>/dev/null || :
+    mv "$_ctmp" "$PARENTAL_CRON" 2>/dev/null || rm -f "$_ctmp" 2>/dev/null || :
   fi
   nft delete rule inet fw4 forward handle \
     "$(nft -a list chain inet fw4 forward 2>/dev/null | awk '/br-guest.*drop/{print $NF}' | head -1)" 2>/dev/null || \
@@ -1024,7 +1043,10 @@ if [ "${FORM_action:-}" = "login" ]; then
     echo "Status: 303 See Other"
     # SameSite=Strict: браузер не пошлёт cookie по запросу с чужого
     # сайта. Сейчас от CSRF спасает только умолчание браузера Lax.
-    echo "Set-Cookie: ATLSESS=$sid; Path=/; HttpOnly; SameSite=Strict"
+    # Secure ставим только для HTTPS: панель слушает и 80, и 443, и
+    # безусловный флаг просто сломал бы вход по http.
+    _sec=""; [ "${HTTPS:-}" = "on" ] && _sec="; Secure"
+    echo "Set-Cookie: ATLSESS=$sid; Path=/; HttpOnly; SameSite=Strict$_sec"
     echo "Location: /cgi-bin/panel"
     echo ""; exit 0
     fi
@@ -1041,7 +1063,11 @@ SID_COOKIE="$(printf "%s" "$COOKIE" | tr ';' '\n' | sed -n 's/^[[:space:]]*ATLSE
 SID_FILE="$(cat /tmp/atl_panel_sid 2>/dev/null || true)"
 [ -n "$SID_COOKIE" ] && [ -n "$SID_FILE" ] && [ "$SID_COOKIE" = "$SID_FILE" ] && need_auth=0
 
-if [ "${FORM_action:-}" = "logout" ]; then
+# Выход обрабатываем ТОЛЬКО для владельца действующей сессии. Раньше
+# этот блок стоял выше проверки и срабатывал на любой запрос: сосед по
+# локальной сети мог в цикле удалять /tmp/atl_panel_sid и держать
+# администратора выкинутым из панели.
+if [ "$need_auth" = "0" ] && [ "${FORM_action:-}" = "logout" ]; then
   rm -f /tmp/atl_panel_sid 2>/dev/null || true
   echo "Status: 303 See Other"
   echo "Set-Cookie: ATLSESS=deleted; Path=/; Max-Age=0"
