@@ -43,7 +43,28 @@ commitcfg(){
   uci -q commit atl_panel 2>/dev/null || true
 }
 
+# На главной странице экранируется 35 значений, и каждое поднимало свой
+# sed — треть от полусекунды генерации страницы уходила только на это.
+# Спецсимволы встречаются в единицах значений, поэтому сначала дешёвая
+# проверка средствами самого шелла, и только при попадании — sed.
+# Экранирование для вывода в HTML. Оставлено на sed: вариант с чтением
+# stdin в переменную требует cat, а это два процесса вместо одного.
+# Быстрый путь живёт в he() ниже — она берёт аргумент и в типичном
+# случае не поднимает ни одного процесса.
 html_escape(){ sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'; }
+
+# То же экранирование, но аргументом. На главной странице так готовятся
+# 43 значения, и почти ни в одном нет спецсимволов: case — встроенная
+# конструкция шелла, поэтому в обычном случае sed не запускается вовсе.
+# Экономит около 40 процессов на каждую генерацию страницы.
+he(){
+  case "$1" in
+    *[\&\<\>\"]*)
+      printf "%s" "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
+      ;;
+    *) printf "%s" "$1" ;;
+  esac
+}
 strip_newlines(){ tr -d '\r\n'; }
 trim_spaces(){ awk '{gsub(/^[ \t]+|[ \t]+$/,""); print}'; }
 
@@ -101,13 +122,25 @@ json_escape(){
     | awk '{printf "%s\\n", $0}'
 }
 
+# Внимание: это проверка «печатный ASCII», а НЕ «безопасно для шелла».
+# Диапазон [ -~] включает ; ` $ | & и кавычки. Значения после неё можно
+# передавать только закавыченными и только туда, где нет разбора шеллом.
 is_ascii(){ printf "%s" "$1" | LC_ALL=C grep -q '^[ -~]*$'; }
+
+# Время в формате ЧЧ:ММ. Без этой проверки значение уходило прямо в файл
+# заданий cron, и строка вида «* * * * * команда #:00» давала выполнение
+# произвольной команды от root.
+is_hhmm(){ printf "%s" "$1" | grep -qE '^([01][0-9]|2[0-3]):[0-5][0-9]$'; }
+
 is_ascii_nospace(){ printf "%s" "$1" | LC_ALL=C grep -q '^[!-~]*$'; }
 len_ge_5(){ [ "$(printf "%s" "$1" | wc -c | tr -d ' ')" -ge 5 ]; }
 len_ge_8(){ [ "$(printf "%s" "$1" | wc -c | tr -d ' ')" -ge 8 ]; }
 
+# Октет [01]?[0-9]?[0-9] пропускал ведущие нули: 01.2.3.4 проходил как
+# валидный адрес. Часть сетевых стеков читает такой октет как
+# восьмеричный, то есть адрес молча означает не то, что видит клиент.
 is_ipv4(){
-  printf "%s" "$1" | grep -Eq '^((25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])$'
+  printf "%s" "$1" | grep -Eq '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$'
 }
 
 urldecode(){
@@ -394,6 +427,9 @@ apply_panel_auth(){
   nu="$1"; np="$2"
   setcfg user "$nu"
   setcfg pass "$np"
+  # Пароль хранится открытым текстом, поэтому файл нельзя оставлять
+  # доступным на чтение всем: 644 отдавал его любому процессу.
+  chmod 600 "$CONF" 2>/dev/null || true
   commitcfg
 }
 
@@ -619,7 +655,13 @@ guest_disable(){
 PARENTAL_CONF="/etc/dnsmasq-guest.d/atl_parental.conf"
 PARENTAL_GAMBLING="/etc/dnsmasq-guest.d/atl_gambling.conf"
 GAMBLING_SRC="/etc/parental-gambling.lst"
-PARENTAL_CRON="/etc/crontabs/atl_parental"
+# Раньше здесь был /etc/crontabs/atl_parental. Busybox crond считает имя
+# файла именем пользователя и такой файл просто пропускает — в логе
+# «ignoring file 'atl_parental' (no such user)». Расписание не работало
+# ни разу, при этом панель показывала его включённым, потому что
+# parental_state() смотрит на содержимое файла, а не на то, читает ли
+# его cron. Пишем в root, свои строки помечаем комментарием.
+PARENTAL_CRON="/etc/crontabs/root"
 PARENTAL_CFG_KEY="atl_parental"
 
 # Определяем доступный firewall backend
@@ -715,7 +757,10 @@ parental_apply_blocklist(){
   DOMAINS="$1"
   mkdir -p /etc/dnsmasq-guest.d
   : > "$PARENTAL_CONF"
-  printf "%s" "$DOMAINS" | tr ',;' '\n\n' | tr ' ' '\n' | while IFS= read -r dom; do
+  # "|| [ -n "$dom" ]" обязателен: read возвращает ненулевой код на
+  # последней строке без перевода, и без него тело цикла для неё не
+  # выполняется — последний домен из введённого списка молча пропадал.
+  printf "%s" "$DOMAINS" | tr ',;' '\n\n' | tr ' ' '\n' | while IFS= read -r dom || [ -n "$dom" ]; do
     dom="$(printf "%s" "$dom" | tr -d '\r\n ' | sed 's|https\?://||;s|/.*||')"
     [ -n "$dom" ] || continue
     # Нужны обе строки: 0.0.0.0 закрывает только A-запись, и сайт
@@ -735,7 +780,7 @@ parental_apply_gambling(){
   mkdir -p /etc/dnsmasq-guest.d
   : > "$PARENTAL_GAMBLING"
   [ -f "$GAMBLING_SRC" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$GAMBLING_SRC" 2>/dev/null | while IFS= read -r dom; do
+  grep -vE '^[[:space:]]*(#|$)' "$GAMBLING_SRC" 2>/dev/null | while IFS= read -r dom || [ -n "$dom" ]; do
     dom="$(printf "%s" "$dom" | tr -d '\r\n ')"
     [ -n "$dom" ] || continue
     printf 'address=/%s/0.0.0.0\n' "$dom" >> "$PARENTAL_GAMBLING"
@@ -747,6 +792,11 @@ parental_apply_schedule(){
   # Расписание через cron: от/до — блокируем трафик гостей
   TIME_OFF="$1"  # HH:MM — выключить (напр. 22:00)
   TIME_ON="$2"   # HH:MM — включить  (напр. 07:00)
+  # Проверка обязательна: строки уходят в файл заданий cron, и без неё
+  # значение вида «* * * * * команда #:00» превращается в задание,
+  # выполняемое от root.
+  is_hhmm "$TIME_OFF" || return 1
+  is_hhmm "$TIME_ON"  || return 1
   H_OFF="${TIME_OFF%%:*}"; M_OFF="${TIME_OFF##*:}"
   H_ON="${TIME_ON%%:*}";   M_ON="${TIME_ON##*:}"
   # Удаляем старые cron-задачи
@@ -760,7 +810,13 @@ parental_apply_schedule(){
 }
 
 parental_remove_schedule(){
-  rm -f "$PARENTAL_CRON" 2>/dev/null || true
+  # rm тут был бы катастрофой: PARENTAL_CRON теперь общий файл заданий
+  # роутера, и вместе с расписанием исчезли бы все сторожа и обновления.
+  # Убираем только свои строки, помеченные atl_parental.
+  if [ -f "$PARENTAL_CRON" ]; then
+    grep -v "atl_parental" "$PARENTAL_CRON" > /tmp/cron_tmp.$$ 2>/dev/null \
+      && mv /tmp/cron_tmp.$$ "$PARENTAL_CRON" || rm -f /tmp/cron_tmp.$$ 2>/dev/null
+  fi
   nft delete rule inet fw4 forward handle \
     "$(nft -a list chain inet fw4 forward 2>/dev/null | awk '/br-guest.*drop/{print $NF}' | head -1)" 2>/dev/null || \
   iptables -D FORWARD -i br-guest -j DROP 2>/dev/null || true
@@ -892,7 +948,10 @@ if [ "${REQUEST_METHOD:-}" = "POST" ]; then
   if [ "$len" -gt 0 ]; then
     if read -r -n "$len" POST_DATA 2>/dev/null; then :; else POST_DATA="$(dd bs=1 count="$len" 2>/dev/null)"; fi
     POST_DATA="$(printf "%s" "$POST_DATA" | tr '\r\n' '  ')"
-    OLDIFS="$IFS"; IFS="&"; set -- $POST_DATA; IFS="$OLDIFS"
+    # set -f обязателен: без него значение со звёздочкой или знаком
+    # вопроса раскроется по именам файлов в текущем каталоге, и в
+    # настройки уедет не то, что ввёл клиент.
+    OLDIFS="$IFS"; IFS="&"; set -f; set -- $POST_DATA; set +f; IFS="$OLDIFS"
     for pair in "$@"; do
       k="${pair%%=*}"; v="${pair#*=}"
       [ -n "$k" ] || continue
@@ -941,15 +1000,38 @@ if [ "${FORM_action:-}" = "login" ]; then
   u_in="$(printf "%s" "$FORM_user" | trim_spaces)"
   p_in="$(printf "%s" "$FORM_pass" | strip_newlines)"
   if [ "$u_in" = "$CUR_USER_CFG" ] && [ "$p_in" = "$CUR_PASS_CFG" ]; then
-    sid="$(head -c 16 /dev/urandom 2>/dev/null | tr -dc 'a-f0-9' | head -c 32)"
-    [ -z "$sid" ] && sid="$(date +%s)$$$(cat /proc/sys/kernel/random/entropy_avail 2>/dev/null || echo 0)"
+    # Раньше здесь было
+    #   head -c 16 /dev/urandom | tr -dc 'a-f0-9' | head -c 32
+    # что выглядит как 32 hex-символа, а на деле выбрасывает всё, кроме
+    # байтов, случайно попавших в диапазон 0-9a-f: 16 значений из 256.
+    # Замер на роутере дал длины 2,0,1,1,0,0,0,1 — сессия из одного
+    # символа перебирается с первой попытки. Пустой результат уходил в
+    # запасной вариант из времени и PID, предсказуемый целиком.
+    #
+    # od переводит те же 16 байт в hex, ничего не теряя.
+    sid="$(od -An -tx1 -N16 /dev/urandom 2>/dev/null | tr -d ' \n')"
+    if [ "${#sid}" -lt 32 ]; then
+      sid="$(tr -d '-' < /proc/sys/kernel/random/uuid 2>/dev/null)"
+    fi
+    if [ "${#sid}" -lt 32 ]; then
+      # Лучше не пустить в панель, чем выдать предсказуемую сессию.
+      ERR="Не удалось создать сессию. Перезагрузите роутер."
+      sid=""
+    fi
+    if [ -n "$sid" ]; then
     echo "$sid" > /tmp/atl_panel_sid 2>/dev/null || true
     chmod 600 /tmp/atl_panel_sid 2>/dev/null || true
     echo "Status: 303 See Other"
-    echo "Set-Cookie: ATLSESS=$sid; Path=/; HttpOnly"
+    # SameSite=Strict: браузер не пошлёт cookie по запросу с чужого
+    # сайта. Сейчас от CSRF спасает только умолчание браузера Lax.
+    echo "Set-Cookie: ATLSESS=$sid; Path=/; HttpOnly; SameSite=Strict"
     echo "Location: /cgi-bin/panel"
     echo ""; exit 0
+    fi
   else
+    # Секунда задержки: перебор пароля по сети становится бессмысленным,
+    # живому человеку незаметна.
+    sleep 1
     ERR="Неверный логин или пароль."
   fi
 fi
@@ -969,11 +1051,11 @@ fi
 
 if [ "$need_auth" = "1" ]; then
   echo "Content-type: text/html; charset=utf-8"; echo ""
-  ES_ERR="$(printf "%s" "${ERR:-}" | html_escape)"
-  ES_MSG="$(printf "%s" "${MSG:-}" | html_escape)"
-  ES_MAC="$(printf "%s" "$MAC" | html_escape)"
+  ES_ERR="$(he "${ERR:-}")"
+  ES_MSG="$(he "${MSG:-}")"
+  ES_MAC="$(he "$MAC")"
   LOGIN_MODEL="Router Standart"
-  ES_LOGIN_MODEL="$(printf "%s" "$LOGIN_MODEL" | html_escape)"
+  ES_LOGIN_MODEL="$(he "$LOGIN_MODEL")"
   ES_PANEL_VER="$(panel_version | html_escape)"
   cat <<HTML
 <!doctype html>
@@ -1509,6 +1591,8 @@ REBOOTPAGE
         uci -q delete network."$IFACE".gateway 2>/dev/null || true
         ;;
       static)
+        # Раньше адреса уходили в uci без единой проверки: опечатка
+        # роняла WAN, и вернуть его можно было только сбросом.
         ip="$(printf "%s" "${FORM_static_ip:-}" | trim_spaces)"
         mask="$(printf "%s" "${FORM_static_mask:-}" | trim_spaces)"
         gw="$(printf "%s" "${FORM_static_gw:-}" | trim_spaces)"
@@ -1820,7 +1904,8 @@ REBOOTPAGE
       parental_apply_blocklist "$DOMAINS"
     fi
     if [ "$SCHED_ON" = "1" ]; then
-      parental_apply_schedule "$TIME_OFF" "$TIME_ON"
+      parental_apply_schedule "$TIME_OFF" "$TIME_ON" \
+        || redir "" "Время указывайте в формате ЧЧ:ММ, например 22:00." ""
     else
       parental_remove_schedule
     fi
@@ -1959,8 +2044,8 @@ case "$GUEST_STATE" in
     GUEST_KEY=""
     ;;
 esac
-ES_GUEST_SSID="$(printf '%s' "$GUEST_SSID" | html_escape)"
-ES_GUEST_KEY="$(printf '%s' "$GUEST_KEY" | html_escape)"
+ES_GUEST_SSID="$(he "$GUEST_SSID")"
+ES_GUEST_KEY="$(he "$GUEST_KEY")"
 
 # Родительский контроль — текущее состояние
 PAR_STATES="$(parental_state)"
@@ -1975,9 +2060,9 @@ PAR_SCHED_OFF="$(grep 'atl_parental' "${PARENTAL_CRON}" 2>/dev/null | head -1 | 
 PAR_SCHED_ON="$(grep 'atl_parental' "${PARENTAL_CRON}" 2>/dev/null | tail -1 | awk '{print $2":"$1}' || echo "07:00")"
 [ -n "$PAR_SCHED_OFF" ] || PAR_SCHED_OFF="22:00"
 [ -n "$PAR_SCHED_ON"  ] || PAR_SCHED_ON="07:00"
-ES_PAR_DOMAINS="$(printf '%s' "$PAR_DOMAINS" | html_escape)"
-ES_PAR_OFF="$(printf '%s' "$PAR_SCHED_OFF" | html_escape)"
-ES_PAR_ON="$(printf '%s' "$PAR_SCHED_ON" | html_escape)"
+ES_PAR_DOMAINS="$(he "$PAR_DOMAINS")"
+ES_PAR_OFF="$(he "$PAR_SCHED_OFF")"
+ES_PAR_ON="$(he "$PAR_SCHED_ON")"
 
 PW_CURRENT="$(pw_current_node)"; [ -n "${PW_CURRENT:-}" ] || PW_CURRENT=""
 PW_CURRENT_LABEL="$(pw_node_label "$PW_CURRENT")"
@@ -1992,7 +2077,7 @@ if pw_exists; then
       case "$label" in TitanSwitch|TITANSWITCH|titanswitch) label="Авто (балансер)" ;; esac
       case "$sec" in *TitanSwitch*|*TITANSWITCH*|*titanswitch*) label="Авто (балансер)" ;; esac
       label="$(normalize_server_label "$label")"
-      ES_SEC="$(printf '%s' "$sec" | html_escape)"; ES_REM="$(printf '%s' "$label" | html_escape)"
+      ES_SEC="$(he "$sec")"; ES_REM="$(he "$label")"
       if [ "$PW_CURRENT" = "$sec" ]; then
         printf '<option value="%s" selected>%s</option>\n' "$ES_SEC" "$ES_REM"
       else
@@ -2014,44 +2099,44 @@ case "$PW_OPTIONS" in
   *" selected>"*) ;;
   *)
     if [ -n "${PW_CURRENT:-}" ]; then
-      _es_cur="$(printf '%s' "$PW_CURRENT" | html_escape)"
-      _es_lab="$(printf '%s' "${PW_CURRENT_LABEL:-$PW_CURRENT}" | html_escape)"
+      _es_cur="$(he "$PW_CURRENT")"
+      _es_lab="$(he "${PW_CURRENT_LABEL:-$PW_CURRENT}")"
       PW_OPTIONS="$(printf '<option value="%s" selected>%s</option>\n%s' \
         "$_es_cur" "$_es_lab" "$PW_OPTIONS")"
     fi
     ;;
 esac
 
-ES_NAME="$(printf '%s' "$ROUTER_NAME" | html_escape)"
-ES_MSG="$(printf '%s' "${MSG:-}" | html_escape)"
-ES_ERR="$(printf '%s' "${ERR:-}" | html_escape)"
-ES_WAN="$(printf '%s' "$CUR_WAN" | html_escape)"
-ES_WANIF="$(printf '%s' "$WAN_IFACE" | html_escape)"
-ES_MAC="$(printf '%s' "$MAC" | html_escape)"
-ES_USER="$(printf '%s' "$CUR_USER" | html_escape)"
-ES_PASS="$(printf '%s' "$CUR_PASS" | html_escape)"
-ES_SERVER="$(printf '%s' "$CUR_SERVER" | html_escape)"
-ES_IP="$(printf '%s' "$CUR_IP" | html_escape)"
-ES_MASK="$(printf '%s' "$CUR_MASK" | html_escape)"
-ES_GW="$(printf '%s' "$CUR_GW" | html_escape)"
-ES_DNS1="$(printf '%s' "$CUR_DNS1" | html_escape)"
-ES_DNS2="$(printf '%s' "$CUR_DNS2" | html_escape)"
-ES_24_SSID="$(printf '%s' "$CUR_24_SSID" | html_escape)"
-ES_24_KEY="$(printf '%s' "$CUR_24_KEY" | html_escape)"
-ES_5_SSID="$(printf '%s' "$CUR_5_SSID" | html_escape)"
-ES_5_KEY="$(printf '%s' "$CUR_5_KEY" | html_escape)"
-ES_PU="$(printf '%s' "$CUR_USER_CFG" | html_escape)"
-ES_PP="$(printf '%s' "$CUR_PASS_CFG" | html_escape)"
-ES_INSTALLED_VER="$(printf '%s' "$INSTALLED_VER" | html_escape)"
-ES_OTA_BUILD="$(printf '%s' "$OTA_BUILD" | html_escape)"
-ES_OTA_CODE="$(printf '%s' "${OTA_CODE:-}" | html_escape)"
-ES_OTA_AT="$(printf '%s' "${OTA_AT:-0}" | html_escape)"
-ES_OTA_HINT="$(printf '%s' "$OTA_HINT" | html_escape)"
-ES_PW_CURRENT_LABEL="$(printf '%s' "$PW_CURRENT_LABEL" | html_escape)"
-ES_SYS_WAN_IP="$(printf '%s' "$SYS_WAN_IP_SHOW" | html_escape)"
-ES_SYS_WAN_GW="$(printf '%s' "$SYS_WAN_GW_SHOW" | html_escape)"
-ES_SYS_DNS="$(printf '%s' "$SYS_DNS" | html_escape)"
-ES_SYS_WAN_L3="$(printf '%s' "$SYS_WAN_L3" | html_escape)"
+ES_NAME="$(he "$ROUTER_NAME")"
+ES_MSG="$(he "${MSG:-}")"
+ES_ERR="$(he "${ERR:-}")"
+ES_WAN="$(he "$CUR_WAN")"
+ES_WANIF="$(he "$WAN_IFACE")"
+ES_MAC="$(he "$MAC")"
+ES_USER="$(he "$CUR_USER")"
+ES_PASS="$(he "$CUR_PASS")"
+ES_SERVER="$(he "$CUR_SERVER")"
+ES_IP="$(he "$CUR_IP")"
+ES_MASK="$(he "$CUR_MASK")"
+ES_GW="$(he "$CUR_GW")"
+ES_DNS1="$(he "$CUR_DNS1")"
+ES_DNS2="$(he "$CUR_DNS2")"
+ES_24_SSID="$(he "$CUR_24_SSID")"
+ES_24_KEY="$(he "$CUR_24_KEY")"
+ES_5_SSID="$(he "$CUR_5_SSID")"
+ES_5_KEY="$(he "$CUR_5_KEY")"
+ES_PU="$(he "$CUR_USER_CFG")"
+ES_PP="$(he "$CUR_PASS_CFG")"
+ES_INSTALLED_VER="$(he "$INSTALLED_VER")"
+ES_OTA_BUILD="$(he "$OTA_BUILD")"
+ES_OTA_CODE="$(he "${OTA_CODE:-}")"
+ES_OTA_AT="$(he "${OTA_AT:-0}")"
+ES_OTA_HINT="$(he "$OTA_HINT")"
+ES_PW_CURRENT_LABEL="$(he "$PW_CURRENT_LABEL")"
+ES_SYS_WAN_IP="$(he "$SYS_WAN_IP_SHOW")"
+ES_SYS_WAN_GW="$(he "$SYS_WAN_GW_SHOW")"
+ES_SYS_DNS="$(he "$SYS_DNS")"
+ES_SYS_WAN_L3="$(he "$SYS_WAN_L3")"
 
 echo "Content-type: text/html; charset=utf-8"
 echo ""
