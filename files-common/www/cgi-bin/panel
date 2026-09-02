@@ -2651,7 +2651,7 @@ input::placeholder{color:var(--dim)}
       <div class="wiz-actions">
         <button class="btn primary" type="button" onclick="wizNext()">Начать настройку →</button>
       </div>
-      <a href="/instruction.html" style="display:block;margin-top:8px;font-size:12px;color:var(--acc);text-align:center;text-decoration:underline">Прочитать инструкцию перед началом</a>
+      <a href="/instruction/" style="display:block;margin-top:8px;font-size:12px;color:var(--acc);text-align:center;text-decoration:underline">Прочитать инструкцию перед началом</a>
       <button class="wiz-skip" type="button" onclick="wizFinish(true)">Пропустить, настрою позже</button>
     </div>
 
@@ -2839,7 +2839,7 @@ input::placeholder{color:var(--dim)}
       <span class="nav-section-label">Сервисы</span>
       <a class="primary" href="javascript:void(0)" onclick="menuBlank('${LINK_SUB}')">Подписка</a>
       <a href="javascript:void(0)" onclick="menuBlank('${LINK_SUPPORT}')">Поддержка</a>
-      <a href="javascript:void(0)" onclick="menuBlank('/instruction.html')">Инструкция</a>
+      <a href="javascript:void(0)" onclick="menuBlank('/instruction/')">Инструкция</a>
       <div class="nav-sep"></div>
       <span class="nav-section-label">Управление</span>
       <button type="button" onclick="pact('restart_inet')">Перезапустить интернет</button>

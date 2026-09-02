@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Titan Router — Инструкция</title>
+<script>
+(function(){try{var t=localStorage.getItem('atlTheme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+</script>
+<style>
+:root{--bg:#000;--s1:#0d0f16;--s2:#13151f;--b1:rgba(255,255,255,.08);--b2:rgba(255,255,255,.13);--txt:#f0f4ff;--mut:rgba(240,244,255,.55);--dim:rgba(240,244,255,.32);--acc:#0ab3ff;--acc2:#0070f0;--ok:#27c97a;--bad:#f04040;--warn:#f0b030;--r:18px;--topbar-h:52px}
+[data-theme="light"]{--bg:#eef2f9;--s1:#fff;--s2:#f7f9fc;--b1:#dde3ef;--b2:#c5cfe0;--txt:#0f172a;--mut:#475569;--dim:#64748b;--acc:#2563eb;--acc2:#1d4ed8;--ok:#15803d;--bad:#dc2626;--warn:#b45309}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;scroll-padding-top:calc(var(--topbar-h) + 12px)}
+body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;min-height:100vh;padding-top:var(--topbar-h)}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:var(--topbar-h);background:rgba(13,15,22,.88);backdrop-filter:blur(18px);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px}
+[data-theme="light"] .topbar{background:rgba(255,255,255,.9)}
+.topbar-back{display:inline-flex;align-items:center;gap:6px;color:var(--acc);font-size:14px;font-weight:700;text-decoration:none;padding:7px 14px;border-radius:999px;border:1px solid rgba(10,179,255,.25)}
+.topbar-title{font-size:14px;font-weight:700;flex:1;text-align:center}
+.topbar-theme{background:none;border:1px solid var(--b1);border-radius:999px;color:var(--dim);font-size:16px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.hero{text-align:center;padding:44px 20px 28px}
+.hero-logo{font-size:42px;font-weight:800;letter-spacing:-2px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+.hero-sub{font-size:14px;color:var(--mut);margin-bottom:24px}
+.toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;max-width:820px;margin:0 auto;padding:0 16px}
+.toc a{display:flex;align-items:center;justify-content:center;background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:8px 6px;font-size:12px;font-weight:600;color:var(--txt);text-decoration:none;text-align:center;min-height:34px}
+.content{max-width:800px;margin:0 auto;padding:28px 16px 90px}
+.section{margin-bottom:44px}
+.section-title{font-size:20px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title span{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:18px 20px;margin-bottom:10px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.card p{color:var(--mut);font-size:14px;margin-bottom:10px}
+.card ul{color:var(--mut);font-size:14px;padding-left:18px;line-height:1.85}
+.card ul li b{color:var(--txt)}
+.steps{counter-reset:step;padding:0;list-style:none}
+.steps li{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid rgba(128,128,128,.12);font-size:14px;color:var(--mut)}
+.steps li:last-child{border-bottom:0}
+.steps li::before{counter-increment:step;content:counter(step);flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.steps li b{color:var(--txt)}
+.tip,.warn-box,.info-box{display:flex;gap:11px;border-radius:13px;padding:13px 15px;margin:10px 0;font-size:13px;color:var(--mut)}
+.tip{background:rgba(39,201,122,.08);border:1px solid rgba(39,201,122,.16)}
+.warn-box{background:rgba(240,176,48,.08);border:1px solid rgba(240,176,48,.16)}
+.info-box{background:rgba(10,179,255,.08);border:1px solid rgba(10,179,255,.16)}
+.wifi-box{background:var(--s2);border:1px solid var(--b1);border-radius:13px;padding:14px 18px;margin:10px 0}
+.wifi-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(128,128,128,.12);font-size:14px}
+.wifi-row:last-child{border-bottom:0}
+.wifi-key{color:var(--mut)}
+.wifi-val{font-weight:700;font-family:monospace;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--b1);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:700}
+.dot-g{width:7px;height:7px;border-radius:50%;background:#27c97a}
+.dot-r{width:7px;height:7px;border-radius:50%;background:#f04040}
+.faq{border:1px solid var(--b1);border-radius:13px;overflow:hidden;margin-bottom:7px}
+.faq summary{cursor:pointer;padding:13px 17px;font-size:14px;font-weight:600;list-style:none;background:var(--s1)}
+.faq summary::-webkit-details-marker{display:none}
+.faq-body{padding:14px 17px;font-size:14px;color:var(--mut);border-top:1px solid var(--b1);background:var(--s2)}
+.faq-body b{color:var(--txt)}
+.divider{height:1px;background:var(--b1);margin:32px 0}
+.support-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:13px;font-size:15px;font-weight:700;text-decoration:none;margin:6px}
+.support-btn.primary{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#fff}
+.support-btn.secondary{background:var(--s1);border:1px solid var(--b1);color:var(--txt)}
+.conn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 4px}
+@media(max-width:520px){.conn-grid{grid-template-columns:1fr}}
+.conn-card{background:var(--s2);border:1px solid var(--b1);border-radius:13px;padding:14px 16px}
+.conn-card .conn-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--txt);margin-bottom:6px}
+.conn-card p{font-size:13px;color:var(--mut);margin:0}
+.opt{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(128,128,128,.12)}
+.opt:last-child{border-bottom:0}
+.opt-num{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:var(--s2);border:1px solid var(--b1);color:var(--acc);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.opt-body{font-size:14px;color:var(--mut)}
+.opt-body b{color:var(--txt)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="topbar-back" href="/cgi-bin/panel">← Панель</a>
+  <span class="topbar-title">📖 Инструкция</span>
+  <button class="topbar-theme" id="themeBtn" onclick="toggleTheme()">🌙</button>
+</div>
+<div class="hero">
+  <div class="hero-logo">Titan Router</div>
+  <div class="hero-sub">Подключение · Настройка · Решение проблем</div>
+  <nav class="toc">
+    <a href="#quickstart">⚡ Старт</a>
+    <a href="#mac">🧷 Привязка MAC</a>
+    <a href="#wifi">📶 Wi-Fi</a>
+    <a href="#panel">🛡 Панель</a>
+    <a href="#wizard">🧙 Мастер</a>
+    <a href="#status">📊 Статусы</a>
+    <a href="#diag">📋 Диагностика</a>
+    <a href="#internet">🌐 Интернет</a>
+    <a href="#vpn">🔐 VPN</a>
+    <a href="#guest">🏠 Гостевая/дети</a>
+    <a href="#traffic">📈 Трафик</a>
+    <a href="#access">🔑 Доступ</a>
+    <a href="#problems">🔧 Проблемы</a>
+    <a href="#subscription">💎 Подписка</a>
+    <a href="#faq">❓ FAQ</a>
+    <a href="#reset">🔘 Reset</a>
+    <a href="#support">🎧 Поддержка</a>
+  </nav>
+</div>
+<div class="content">
+
+<div class="section" id="quickstart">
+  <div class="section-title">⚡ <span>Быстрый старт</span></div>
+  <div class="card">
+    <h3>🔌 Шаг 1. Подключение кабеля провайдера</h3>
+    <p>Вставьте кабель, заведённый в квартиру провайдером, в порт <b>WAN</b> на задней панели роутера. Без подключённого кабеля доступ в интернет невозможен.</p>
+    <div class="info-box"><div>ℹ️</div><div>Порт <b>WAN</b> предназначен исключительно для кабеля провайдера. Остальные порты (<b>LAN</b>) служат для подключения домашних устройств.<br><a href="http://titan.lan/instruction.html#mac" style="color:var(--acc);font-weight:600">Почему после подключения кабеля может не быть интернета →</a></div></div>
+  </div>
+  <div class="card">
+    <h3>🖥 Шаг 2. Подключение к роутеру</h3>
+    <p>Выберите удобный способ подключения вашего устройства:</p>
+    <div class="conn-grid">
+      <div class="conn-card">
+        <div class="conn-h">📶 По Wi-Fi</div>
+        <p>Подключитесь к сети <b>Titan-2.4</b> или <b>Titan-5</b>. Заводской пароль — <b>11111118</b>.</p>
+      </div>
+      <div class="conn-card">
+        <div class="conn-h">🔗 По кабелю</div>
+        <p>Если на компьютере отсутствует Wi-Fi, соедините его с любым портом <b>LAN</b> роутера сетевым кабелем.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🛡 Шаг 3. Вход в панель управления</h3>
+    <p>Откройте браузер и введите в адресной строке <b>192.168.14.1</b> или <b>titan.lan</b>. Для входа используйте логин <b>admin</b> и пароль <b>admin</b>. Сразу после входа смените их в разделе «Доступ к панели».</p>
+  </div>
+  <div class="card">
+    <h3>🔐 Шаг 4. Проверка VPN</h3>
+    <p>В блоке «🛡 VPN и сервер» убедитесь, что VPN включён — индикатор должен быть зелёным. Заблокированные сервисы начинают работать через VPN автоматически.</p>
+    <div class="tip"><div>💡</div><div>Смените заводской пароль Wi-Fi в панели → «Настройки Wi-Fi»: он одинаковый на всех роутерах и его знают посторонние.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="mac">
+  <div class="section-title">🧷 <span>Интернет не появляется после подключения кабеля</span></div>
+  <div class="card">
+    <h3>ℹ️ Возможная причина — привязка по MAC-адресу</h3>
+    <p>Некоторые провайдеры «привязывают» подключение к MAC-адресу того устройства, которое было подключено к кабелю ранее (старого роутера или компьютера). При замене оборудования интернет не включается до тех пор, пока привязка не будет обновлена.</p>
+    <p>Признак: кабель в порту <b>WAN</b>, тип подключения выбран верно, но IP-адрес от провайдера не выдаётся.</p>
+    <div class="info-box"><div>ℹ️</div><div>Если у провайдера нет привязки по MAC, интернет появляется сразу — этот раздел можно пропустить.</div></div>
+  </div>
+  <div class="card">
+    <h3>✅ Как решить — три варианта</h3>
+    <div class="opt">
+      <div class="opt-num">1</div>
+      <div class="opt-body"><b>Обратиться к провайдеру.</b> Позвоните в техническую поддержку и попросите перепривязать подключение на новое устройство. Понадобится <b>MAC-адрес</b> роутера — он указан в шапке панели и на странице <a href="http://titan.lan/my-mac/" style="color:var(--acc)">titan.lan/my-mac/</a>.</div>
+    </div>
+    <div class="opt">
+      <div class="opt-num">2</div>
+      <div class="opt-body"><b>Подключить через существующий роутер.</b> Если ранее у вас стоял другой роутер, который провайдер уже «знает», подключите кабель провайдера в его порт <b>WAN</b>, а кабель из его порта <b>LAN</b> — в порт <b>WAN</b> роутера Titan. Titan получит интернет от первого роутера, и привязка провайдера сохранится.<br><br><b>Важно:</b> образуется двойной NAT. Возможны проблемы с онлайн-играми, видеозвонками, IPTV. Этот способ запасной — надёжнее перепривязать подключение у провайдера (вариант 1).</div>
+    </div>
+    <div class="opt">
+      <div class="opt-num">3</div>
+      <div class="opt-body"><b>Попробовать сменить тип подключения.</b> Откройте панель → «Настройки интернета» и проверьте тип подключения провайдера — при неверном типе интернета не будет. Как выбрать тип описано в разделе <a href="http://titan.lan/instruction.html#internet" style="color:var(--acc)">«Настройка интернета (WAN)»</a>.</div>
+    </div>
+    <div class="warn-box"><div>⚠️</div><div>Самый надёжный способ — вариант 1. После перепривязки провайдером роутер можно подключать кабелем напрямую.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="wifi">
+  <div class="section-title">📶 <span>Подключение к Wi-Fi</span></div>
+  <div class="card">
+    <h3>🔑 Данные для подключения (по умолчанию)</h3>
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key">Сеть 2.4 ГГц</span><span class="wifi-val">Titan-2.4</span></div>
+      <div class="wifi-row"><span class="wifi-key">Сеть 5 ГГц</span><span class="wifi-val">Titan-5</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль</span><span class="wifi-val">11111118</span></div>
+    </div>
+    <div class="tip"><div>💡</div><div><b>5 ГГц</b> быстрее рядом с роутером, <b>2.4 ГГц</b> лучше пробивает стены.</div></div>
+    <div class="warn-box"><div>⚠️</div><div>Рекомендуем задать пароль в панели → «Настройки Wi-Fi». Минимум 8 символов.</div></div>
+  </div>
+  <div class="card">
+    <h3>📱 Телефон / 💻 Компьютер / 📺 ТВ</h3>
+    <ol class="steps">
+      <li>Откройте настройки Wi-Fi устройства</li>
+      <li>Выберите <b>Titan-2.4</b> или <b>Titan-5</b> (телевизоры обычно поддерживают только 2.4)</li>
+      <li>Нажмите «Подключить» — пароль вводить не нужно, пока он не задан</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔑 Как задать имя и пароль Wi-Fi</h3>
+    <ol class="steps">
+      <li>Панель → блок <b>«🏠 Настройки Wi-Fi»</b></li>
+      <li>Имя вводится без префикса — «Titan-» подставится сам</li>
+      <li>Задайте пароль (минимум 8 символов) для 2.4 и/или 5 ГГц</li>
+      <li>Нажмите <b>💾 Сохранить Wi-Fi</b> — устройства переподключите заново</li>
+    </ol>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="panel">
+  <div class="section-title">🛡 <span>Панель управления</span></div>
+  <div class="card">
+    <h3>🌐 Как открыть</h3>
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key">Адрес</span><span class="wifi-val">192.168.14.1</span></div>
+      <div class="wifi-row"><span class="wifi-key">или</span><span class="wifi-val">titan.lan</span></div>
+      <div class="wifi-row"><span class="wifi-key">Логин / пароль</span><span class="wifi-val">admin / admin</span></div>
+    </div>
+    <div class="tip"><div>💡</div><div>Вводите адрес в строку браузера, не в поиск. Протокол http://, не https.</div></div>
+  </div>
+  <div class="card">
+    <h3>🏠 Главный экран</h3>
+    <ul>
+      <li><b>Настройки интернета</b> — тип подключения, IP, перезагрузка</li>
+      <li><b>Настройки Wi-Fi</b> — имя сети и пароль (2.4 и 5 ГГц)</li>
+      <li><b>🛡 VPN и сервер</b> — включение VPN, выбор сервера, URL Test</li>
+      <li>В шапке — <b>MAC</b> (с копированием) и индикатор статуса <b>VPN</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>☰ Боковое меню</h3>
+    <ul>
+      <li><b>Подписка</b>, <b>Поддержка</b>, <b>Инструкция</b></li>
+      <li><b>Перезапустить интернет</b> — переподключение к провайдеру (~10 сек)</li>
+      <li><b>Обновить подписку</b> — загрузить свежие серверы</li>
+      <li><b>Отключить / включить VPN</b></li>
+      <li><b>Обновить роутер</b> — обновление панели (настройки не трогает)</li>
+      <li><b>Расширенные настройки</b> — диагностика, гостевая сеть, доступ, трафик</li>
+      <li><b>Мастер настройки</b> — быстрая настройка с нуля</li>
+      <li><b>Тёмная тема</b>, <b>Выйти</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>📱 MAC-адрес</h3>
+    <p>Виден в шапке панели. Отдельная страница: <a href="http://titan.lan/my-mac/" style="color:var(--acc)">titan.lan/my-mac/</a>. Нажмите 📋 чтобы скопировать. MAC нужен при обращении в поддержку.</p>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="wizard">
+  <div class="section-title">🧙 <span>Мастер настройки</span></div>
+  <div class="card">
+    <h3>3 шага для настройки с нуля</h3>
+    <ol class="steps">
+      <li><b>Шаг 1 — Wi-Fi.</b> Выберите вкладку 2.4 или 5 ГГц, задайте имя (префикс Titan- добавится сам) и пароль. Пароль один для обеих сетей</li>
+      <li><b>Шаг 2 — Интернет.</b> Выберите тип подключения провайдера (по умолчанию DHCP)</li>
+      <li><b>Шаг 3 — Пароль панели.</b> Смените стандартные admin/admin на свои → «Сохранить и завершить»</li>
+    </ol>
+    <div class="info-box"><div>ℹ️</div><div>Мастер открывается из бокового меню. Любой шаг можно пропустить.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="status">
+  <div class="section-title">📊 <span>Статусы сервисов</span></div>
+  <div class="card">
+    <h3>🟢 Строка индикаторов (в «Расширенных настройках»)</h3>
+    <p>Вверху страницы видна строка состояния — быстро показывает, что работает:</p>
+    <div class="chips">
+      <span class="chip"><span class="dot-g"></span>IP</span>
+      <span class="chip"><span class="dot-g"></span>WAN</span>
+      <span class="chip"><span class="dot-g"></span>Интернет</span>
+      <span class="chip"><span class="dot-g"></span>YouTube</span>
+      <span class="chip"><span class="dot-g"></span>Telegram</span>
+      <span class="chip"><span class="dot-g"></span>ВКонтакте</span>
+      <span class="chip"><span class="dot-g"></span>ИИ</span>
+      <span class="chip"><span class="dot-g"></span>VPN</span>
+    </div>
+    <ul>
+      <li><b style="color:#27c97a">● Зелёный</b> — сервис доступен</li>
+      <li><b style="color:#f04040">● Красный</b> — недоступен</li>
+      <li><b>CPU / RAM</b> — нагрузка на роутер</li>
+      <li><b>Кнопка «R / Сейчас»</b> — обновить статусы вручную</li>
+    </ul>
+    <div class="tip"><div>💡</div><div>Если YouTube красный, а Telegram зелёный — проблема в сервере VPN: нажмите URL Test и смените сервер.</div></div>
+  </div>
+  <div class="card">
+    <h3>🏓 URL Test — пинг серверов</h3>
+    <p>В блоке «VPN и сервер» нажмите <b>🏓 URL Test</b> — роутер проверит каждый сервер. Выбирайте сервер с <b style="color:#27c97a">зелёным пингом</b> (меньше — лучше).</p>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="diag">
+  <div class="section-title">📋 <span>Диагностика соединения</span></div>
+  <div class="card">
+    <p>Блок в «Расширенных настройках» показывает текущие сетевые данные:</p>
+    <ul>
+      <li><b>Интерфейс / Устройство</b> — напр. wan / eth1</li>
+      <li><b>Протокол</b> — dhcp, pppoe и т.д.</li>
+      <li><b>IP-адрес, Шлюз, DNS</b> — от провайдера</li>
+    </ul>
+    <div class="info-box"><div>ℹ️</div><div>Эти данные пригодятся поддержке, если интернет не включается.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="internet">
+  <div class="section-title">🌐 <span>Настройка интернета (WAN)</span></div>
+  <div class="card">
+    <h3>⚡ Типы подключения</h3>
+    <ul>
+      <li><b>DHCP</b> — автоматически, подходит большинству</li>
+      <li><b>PPPoE</b> — логин и пароль из договора</li>
+      <li><b>Статический IP</b> — фиксированный адрес</li>
+      <li><b>L2TP / PPTP</b> — туннельное подключение</li>
+    </ul>
+    <div class="tip"><div>💡</div><div>Не знаете тип? Попробуйте DHCP. Кабель провайдера — всегда в порт WAN.</div></div>
+  </div>
+  <div class="card">
+    <h3>🔁 Интернет пропал — по порядку</h3>
+    <ol class="steps">
+      <li>Проверьте кабель в порту <b>WAN</b></li>
+      <li>Меню → <b>🔁 Перезапустить интернет</b> (~10 сек)</li>
+      <li>Не помогло → «Настройки интернета» → <b>↺ Перезагрузить роутер</b> (~40 сек)</li>
+      <li>Всё ещё нет → выньте питание на 10 сек</li>
+      <li><b>IP есть, но сайтов нет</b> → проверьте тип подключения (для PPPoE — логин/пароль)</li>
+      <li>IP не выдаётся вовсе → возможна <a href="http://titan.lan/instruction.html#mac" style="color:var(--acc)">привязка по MAC</a></li>
+      <li>Ничего не помогло — <a href="#support" style="color:var(--acc)">поддержка</a></li>
+    </ol>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="vpn">
+  <div class="section-title">🔐 <span>VPN</span></div>
+  <div class="card">
+    <h3>ℹ️ Что это</h3>
+    <p>VPN — зашифрованный туннель. С ним работают YouTube, Instagram, Telegram, ИИ-сервисы. Роутер сам направляет нужный трафик через VPN, остальное — напрямую.</p>
+    <div class="info-box"><div>📵</div><div>Приложение VPN на телефон/ТВ ставить не нужно — VPN работает на самом роутере.</div></div>
+  </div>
+  <div class="card">
+    <h3>▶️ Включение и выбор сервера</h3>
+    <ol class="steps">
+      <li>Блок <b>«🛡 VPN и сервер»</b> → кнопка включения (или пункт меню «Отключить/включить VPN»)</li>
+      <li>Чип «VPN» в шапке — это индикатор статуса, не кнопка</li>
+      <li>Нажмите <b>🏓 URL Test</b>, выберите сервер с зелёным пингом или «Авто (балансер)»</li>
+      <li>Нажмите <b>Применить</b></li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔄 Обновление подписки</h3>
+    <p>Обновляется автоматически ночью. Вручную: меню → <b>🔄 Обновить подписку</b>, подождите 20–40 сек, обновите страницу.</p>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="guest">
+  <div class="section-title">🏠 <span>Гостевая сеть и родительский контроль</span></div>
+  <div class="card">
+    <p>Гостевая сеть <b>Titan-Guest</b> работает без VPN (прямой интернет) и изолирована от домашних устройств. Родительский контроль действует <b>только на гостевую сеть</b>.</p>
+  </div>
+  <div class="card">
+    <h3>▶️ Включить гостевую</h3>
+    <ol class="steps">
+      <li>Меню → <b>Расширенные настройки</b></li>
+      <li>Имя сети и пароль (пусто = открытая) → <b>✅ Включить гостевую</b></li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔒 Родительский контроль</h3>
+    <ul>
+      <li><b>🛡 Безопасный DNS</b> — галка Yandex.DNS Family (блок 18+, казино)</li>
+      <li><b>⏰ Расписание</b> — галка «Отключать по времени»</li>
+      <li><b>Блокировать сайты</b> — домены через запятую, например: tiktok.com, instagram.com</li>
+    </ul>
+    <div class="warn-box"><div>⚠️</div><div>Подключите устройство ребёнка к Titan-Guest и нажмите 💾 Сохранить. На основную сеть блокировки не действуют.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="traffic">
+  <div class="section-title">📈 <span>Трафик и устройства</span></div>
+  <div class="card">
+    <p>Раздел в «Расширенных настройках» показывает:</p>
+    <ul>
+      <li><b>Полученные / отправленные данные</b> по WAN с момента загрузки</li>
+      <li><b>Число активных соединений</b></li>
+      <li><b>Список устройств</b> — имя, IP и MAC каждого подключённого</li>
+    </ul>
+    <div class="tip"><div>💡</div><div>Так можно увидеть все устройства в сети и заметить чужое.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="access">
+  <div class="section-title">🔑 <span>Доступ к панели</span></div>
+  <div class="card">
+    <ol class="steps">
+      <li>Расширенные настройки → <b>«🔐 Доступ к панели управления»</b></li>
+      <li>Новый логин — латиница и цифры, минимум 5 символов</li>
+      <li>Новый пароль — латиница и цифры, минимум 8 символов</li>
+      <li><b>💾 Сохранить доступ</b> — откроется окно для входа с новыми данными</li>
+    </ol>
+    <div class="warn-box"><div>⚠️</div><div>Только латинские буквы и цифры — иначе панель не сохранит.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="problems">
+  <div class="section-title">🔧 <span>Частые проблемы</span></div>
+  <div class="card">
+    <h3>🔴 YouTube / Telegram не работает</h3>
+    <ol class="steps">
+      <li>Проверьте, что VPN включён (зелёный)</li>
+      <li><b>🏓 URL Test</b> → выберите сервер с зелёным пингом → Применить</li>
+      <li>Не помогло — меню → <b>🔄 Обновить подписку</b>, подождите 1–2 минуты</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔴 Нет интернета вообще</h3>
+    <ol class="steps">
+      <li>Кабель провайдера должен быть в порту <b>WAN</b></li>
+      <li>Меню → <b>🔁 Перезапустить интернет</b>, подождите 20 сек</li>
+      <li>Нет IP → проверьте тип подключения (для PPPoE — логин/пароль)</li>
+      <li>IP так и не появился → возможна <a href="http://titan.lan/instruction.html#mac" style="color:var(--acc)">привязка по MAC-адресу</a></li>
+      <li>Не помогло — <b>↺ Перезагрузить роутер</b> или короткое нажатие Reset</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔴 Панель не открывается</h3>
+    <ol class="steps">
+      <li>Убедитесь, что подключены к Titan-2.4 или Titan-5</li>
+      <li>Введите <b>http://192.168.14.1/</b> (именно http, не https)</li>
+      <li>Очистите кэш: Ctrl+Shift+R / Cmd+Shift+R</li>
+      <li>Попробуйте другой браузер или режим инкогнито</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔴 Медленный интернет через VPN</h3>
+    <ol class="steps">
+      <li><b>🏓 URL Test</b> → выберите сервер с наименьшим зелёным пингом</li>
+      <li>Обновите подписку — могут появиться более быстрые серверы</li>
+      <li>Рядом с роутером подключайтесь к 5 ГГц</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>🔴 Забыл пароль от панели</h3>
+    <p>Зажмите <b>Reset</b> на 3+ секунды. Пароль панели сбросится до <b>admin/admin</b>, пароль Wi-Fi — до заводского <b>11111118</b>.</p>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div>Сброс заодно стирает настройки провайдера и гостевую сеть. Если интернет у вас по логину и паролю, приготовьте договор.</div></div>
+  </div>
+  <div class="card">
+    <h3>🔴 Роутер завис</h3>
+    <ol class="steps">
+      <li>Короткое нажатие <b>Reset</b> (до 3 сек) — перезагрузка</li>
+      <li>Не помогло — выньте питание на 15 сек и включите снова</li>
+      <li>Дождитесь полной загрузки (~40 сек)</li>
+    </ol>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="subscription">
+  <div class="section-title">💎 <span>Подписка</span></div>
+  <div class="card">
+    <h3>ℹ️ Зачем нужна</h3>
+    <p>Подписка — доступ к серверам VPN. Без активной подписки VPN включается (зелёный), но сайты не открываются, а в URL Test все серверы не отвечают.</p>
+  </div>
+  <div class="card">
+    <h3>🔄 Как продлить</h3>
+    <ol class="steps">
+      <li>Меню → <b>💎 Подписка</b>, следуйте инструкциям</li>
+      <li>После оплаты → меню → <b>🔄 Обновить подписку</b></li>
+      <li>Подождите 30 сек — серверы появятся снова</li>
+    </ol>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="faq">
+  <div class="section-title">❓ <span>Частые вопросы</span></div>
+  <details class="faq"><summary>Нужно ли вручную обновлять подписку?</summary><div class="faq-body">Нет — обновляется <b>автоматически каждую ночь</b>. Вручную только если серверы перестали работать прямо сейчас.</div></details>
+  <details class="faq"><summary>Как проверить, что VPN работает?</summary><div class="faq-body">В «Расширенных настройках» индикаторы YouTube, Telegram, ИИ должны быть <b>зелёными</b>, а на 2ip.ru IP должен отличаться от домашнего.</div></details>
+  <details class="faq"><summary>Можно подключить телевизор без VPN?</summary><div class="faq-body">Да — подключите его к <b>гостевой сети Titan-Guest</b>, она работает напрямую, без VPN.</div></details>
+  <details class="faq"><summary>Что делает «Обновить роутер»?</summary><div class="faq-body">Обновляет панель управления. Ваши настройки (Wi-Fi, пароль, VPN, подписка) <b>не затрагиваются</b>.</div></details>
+  <details class="faq"><summary>Почему интернет медленнее через VPN?</summary><div class="faq-body">Трафик идёт через сервер — добавляется задержка. Выберите сервер с низким зелёным пингом и обновите подписку.</div></details>
+  <details class="faq"><summary>После подключения кабеля нет интернета — почему?</summary><div class="faq-body">Возможна <b>привязка по MAC-адресу</b> у провайдера. См. раздел <a href="http://titan.lan/instruction.html#mac" style="color:var(--acc)">«Интернет не появляется после подключения кабеля»</a>.</div></details>
+  <details class="faq"><summary>Где найти MAC-адрес?</summary><div class="faq-body">В шапке панели (кнопка 📋) или на странице <a href="http://titan.lan/my-mac/" style="color:var(--acc)">titan.lan/my-mac/</a>. Нужен для поддержки.</div></details>
+  <details class="faq"><summary>Почему после смены названия сети или пароля Wi-Fi всё отключилось?</summary><div class="faq-body">Это нормально: при смене названия сети или пароля устройства больше не знают новые данные. Подключите их к сети заново.</div></details>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="reset">
+  <div class="section-title">🔘 <span>Кнопка Reset</span></div>
+  <div class="card">
+    <ul>
+      <li><b>Короткое нажатие</b> (до 3 сек) — перезагрузка роутера</li>
+      <li><b>Длинное нажатие</b> (3 сек и дольше) — сброс Wi-Fi и пароля панели</li>
+    </ul>
+    <div class="wifi-box">
+      <div class="wifi-row"><span class="wifi-key">Wi-Fi после сброса</span><span class="wifi-val">Titan-2.4 / Titan-5</span></div>
+      <div class="wifi-row"><span class="wifi-key">Пароль Wi-Fi после сброса</span><span class="wifi-val">11111118</span></div>
+      <div class="wifi-row"><span class="wifi-key">Логин/пароль панели</span><span class="wifi-val">admin / admin</span></div>
+    </div>
+    <div class="warn-box"><div class="t-icon">⚠️</div><div><b>Подписка сохраняется</b>, но настройки подключения к провайдеру <b>стираются</b>. Если у вас PPPoE, L2TP, PPTP или статический IP — держите договор под рукой, эти данные придётся ввести заново. При DHCP вводить ничего не нужно. Выбранный сервер VPN тоже вернётся на автоматический.</div></div>
+  </div>
+</div>
+<div class="divider"></div>
+
+<div class="section" id="support">
+  <div class="section-title">🎧 <span>Поддержка</span></div>
+  <div class="card" style="text-align:center">
+    <p>Не смогли решить? Напишите нам и укажите <b>MAC-адрес</b> роутера.</p>
+    <a class="support-btn primary" href="https://t.me/TitanVPSHelp_bot" target="_blank" rel="noopener">🎧 Написать в поддержку</a>
+    <a class="support-btn secondary" href="https://t.me/TitanVPSHelp_bot" target="_blank" rel="noopener">💎 Подписка</a>
+    <div class="info-box" style="margin-top:14px;text-align:left"><div>🔍</div><div>MAC-адрес: <a href="http://titan.lan/my-mac/" style="color:var(--acc)">titan.lan/my-mac/</a></div></div>
+  </div>
+</div>
+
+</div>
+<script>
+(function(){
+  function applyTheme(t){document.documentElement.setAttribute('data-theme',t||'light');var b=document.getElementById('themeBtn');if(b)b.textContent=(t==='dark')?'☀️':'🌙';}
+  window.toggleTheme=function(){var c=document.documentElement.getAttribute('data-theme')||'light';var n=c==='light'?'dark':'light';applyTheme(n);try{localStorage.setItem('atlTheme',n);}catch(e){}};
+  try{applyTheme(localStorage.getItem('atlTheme')||'light');}catch(e){applyTheme('light');}
+})();
+</script>
+</body>
+</html>
