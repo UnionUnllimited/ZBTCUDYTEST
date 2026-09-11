@@ -1315,7 +1315,7 @@ input::placeholder{color:var(--dim)}
 <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">Тёмная</button>
 <div class="login-wrap">
   <div class="logo-area">
-    <img class="logo-mark" src="/mark.svg" width="72" height="72" alt="">
+    <img class="logo-mark" src="/logo.png" width="72" height="72" alt="">
     <div class="logo">TITAN ROUTER</div>
     <div class="logo-sub">Панель управления роутером</div>
     ${ES_LOGIN_MODEL:+<div class="logo-model"><span class="logo-model-dot"></span>${ES_LOGIN_MODEL}</div>}
@@ -2346,13 +2346,14 @@ a{color:inherit;text-decoration:none}
 
 /* ══ Шапка ════════════════════════════════════════════════════ */
 .header{
-  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
   margin-bottom:10px;position:sticky;top:0;z-index:150;padding:8px 0;
   background:rgba(10,15,24,.8);
   -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
 }
 .header .meta-chips{justify-self:center}
-.header #burgerBtn{justify-self:start}
+.header #burgerBtn{justify-self:end}
+.header .brand{justify-self:start}
 .brand{display:flex;align-items:center;gap:10px}
 /* Знак стоит сам по себе, без подложки: у него свой градиент, и
    синий квадрат под ним спорил с ним же. */
@@ -2390,11 +2391,14 @@ a{color:inherit;text-decoration:none}
 /* ══ Боковое меню ═════════════════════════════════════════════ */
 #navOverlay{display:none;position:fixed;inset:0;z-index:298;background:rgba(4,8,14,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 #navOverlay.on{display:block}
+/* Выезжает справа: бургер стоит справа, и панель, вылетающая с
+   противоположной стороны, читается как чужая — палец идёт к
+   кнопке, а меню открывается у другого края. */
 .nav{
   display:flex;flex-direction:column;flex-wrap:nowrap;
-  position:fixed;left:0;top:0;bottom:0;width:280px;z-index:299;
-  background:var(--s1);border-right:0;box-shadow:8px 0 48px rgba(0,0,0,.6),var(--edge);
-  transform:translateX(-100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
+  position:fixed;right:0;top:0;bottom:0;width:280px;z-index:299;
+  background:var(--s1);border-left:0;box-shadow:-8px 0 48px rgba(0,0,0,.6),var(--edge);
+  transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
   overflow-y:auto;overflow-x:hidden;
 }
 .nav.is-open{transform:translateX(0)}
@@ -2419,7 +2423,9 @@ a{color:inherit;text-decoration:none}
   color:var(--txt);gap:11px;cursor:pointer;white-space:nowrap;
   transition:background .12s,color .12s;
   -webkit-user-select:none;user-select:none;touch-action:manipulation;
+  text-align:left;
 }
+.nav a .grow,.nav button .grow{text-align:left}
 .nav a:hover,.nav button:hover{background:rgba(255,255,255,.05)}
 .nav a:active,.nav button:active{background:rgba(255,255,255,.08)}
 .nav a.primary,.nav button.primary{
@@ -2648,7 +2654,7 @@ input::placeholder{color:var(--dim)}
 [data-theme="light"] .adv-arr{background:rgba(15,23,42,.05)}
 [data-theme="light"] .si:hover{background:var(--s2)}
 [data-theme="light"] #navOverlay{background:rgba(15,23,42,.4)}
-[data-theme="light"] .nav{box-shadow:8px 0 40px rgba(15,23,42,.12)}
+[data-theme="light"] .nav{box-shadow:-8px 0 40px rgba(15,23,42,.12)}
 [data-theme="light"] #atlTitle{color:var(--txt);-webkit-text-fill-color:currentColor}
 [data-theme="light"] .nav-header-title{color:var(--txt);-webkit-text-fill-color:currentColor}
 
@@ -2769,6 +2775,14 @@ button.item:active{background:rgba(255,255,255,.05)}
 .pw-eye .ic{width:19px;height:19px}
 .copybtn{display:inline-flex;align-items:center;justify-content:center}
 .copybtn .ic{width:15px;height:15px}
+/* Внутри чипа кнопка копирования идёт без подложки: своя заливка
+   в 10-пиксельном поле пилюли давала коробку в коробке, и чип
+   переставал читаться одним элементом. */
+.mchip .copybtn{background:none;border:0;padding:2px;min-height:auto;color:var(--dim)}
+.mchip .copybtn:hover{background:none;color:var(--txt)}
+/* Галочка «скопировано» не должна раздвигать чип, пока её не видно. */
+.mchip .toast{width:0;overflow:hidden;transition:width .2s,opacity .2s}
+.mchip .toast.on{width:15px}
 .toast .ic{width:15px;height:15px}
 .ir-label{display:inline-flex;align-items:center;gap:7px}
 .ir-label .ic{width:16px;height:16px;color:var(--dim)}
@@ -2804,6 +2818,7 @@ button.item:active{background:rgba(255,255,255,.05)}
 <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 6.1A9.8 9.8 0 0 1 12 5.8c6.4 0 9.8 6.2 9.8 6.2a17 17 0 0 1-3 3.9"/><path d="M6.4 8.2A17 17 0 0 0 2.2 12S5.6 18.2 12 18.2c1.4 0 2.6-.3 3.7-.8"/><path d="M4 4l16 16"/></symbol>
 <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.8l8.5 6.7v8.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M9.5 20.5v-7h5v7"/></symbol>
 <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M12 7.2V12l3.2 2"/></symbol>
 <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 17.5a9 9 0 1 1 16.8 0"/><path d="M12 13.5 16 9.8"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6 20.5 20.5"/></symbol>
 <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.8h19M6.5 15h3"/></symbol>
@@ -2994,12 +3009,15 @@ button.item:active{background:rgba(255,255,255,.05)}
 
 <div class="wrap">
   <div class="header">
-    <button id="burgerBtn" type="button" onclick="menuToggle()" aria-label="Меню" autocomplete="off"><svg class="ic ic-lg"><use href="#i-menu"/></svg></button>
+    <div class="brand">
+      <div class="brand-icon"><img src="/logo.png" width="34" height="34" alt=""></div>
+      <div><h1 id="atlTitle">Titan Router</h1><div class="brand-sub">${ES_NAME}</div></div>
+    </div>
     <div class="meta-chips" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center">
       <div class="mchip mchip-mac">
         <span style="color:var(--dim);font-size:11px;margin-right:2px">MAC</span>
         <span id="deviceid" class="copyid">${ES_MAC}</span>
-        <button class="copybtn" type="button" onclick="copyText('deviceid')" style="padding:4px 8px;min-height:28px;font-size:11px"><svg class="ic"><use href="#i-copy"/></svg></button>
+        <button class="copybtn" type="button" onclick="copyText('deviceid')" aria-label="Скопировать MAC"><svg class="ic"><use href="#i-copy"/></svg></button>
         <span id="copied" class="toast"><svg class="ic"><use href="#i-check"/></svg></span>
       </div>
       <div class="mchip" id="vpn-hdr-chip" onclick="pact('${BYPASS_ACT}')" style="cursor:pointer;gap:6px" title="Нажмите для переключения VPN">
@@ -3008,10 +3026,7 @@ button.item:active{background:rgba(255,255,255,.05)}
         <span style="font-size:11px;color:var(--dim)" id="sv-bypass-hdr">${BYPASS_LABEL}</span>
       </div>
     </div>
-    <div class="brand">
-      <div class="brand-icon"><img src="/logo.svg" width="34" height="34" alt=""></div>
-      <div><h1 id="atlTitle">Titan Router</h1><div class="brand-sub">${ES_NAME}</div></div>
-    </div>
+    <button id="burgerBtn" type="button" onclick="menuToggle()" aria-label="Меню" autocomplete="off"><svg class="ic ic-lg"><use href="#i-menu"/></svg></button>
   </div>
 
   <!-- ── Overlay (закрывает sidebar при клике вне) ── -->
@@ -3020,7 +3035,7 @@ button.item:active{background:rgba(255,255,255,.05)}
   <!-- ── Навигация — боковая панель ── -->
   <nav class="nav" id="mainNav" role="navigation" aria-label="Главное меню">
     <div class="nav-header">
-      <span class="nav-header-title"><img src="/logo.svg" width="22" height="22" alt="">Titan Router</span>
+      <span class="nav-header-title"><img src="/logo.png" width="22" height="22" alt="">Titan Router</span>
       <button class="nav-close" type="button" onclick="menuClose()" aria-label="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="nav-items">
@@ -3330,7 +3345,7 @@ button.item:active{background:rgba(255,255,255,.05)}
                       </label>
                     </div>
                     <div class="info-row" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-                      <span class="ir-label">⏰ Расписание</span>
+                      <span class="ir-label"><svg class="ic"><use href="#i-clock"/></svg>Расписание</span>
                       <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--txt);font-size:12px">
                         <input type="checkbox" id="par_sched" style="width:18px;min-height:18px;margin:0;cursor:pointer" ${PAR_SCHED_CHK} onchange="toggleSched()">
                         <span style="color:var(--mut);font-size:11px">Отключать по времени</span>
