@@ -183,6 +183,29 @@ jobs:
           echo -n "passwall:    "; ls files/etc/init.d/passwall 2>/dev/null && echo "OK" || echo "НЕТ"
           echo -n "xray:        "; ls files/usr/bin/xray 2>/dev/null && echo "OK" || echo "НЕТ"
 
+      - name: Restore our routing lists over the package ones
+        run: |
+          # Архив PassWall распаковывается в тот же files/, куда наши
+          # файлы уже скопированы шагом «Merge files», и молча затирает
+          # одноимённые. Списки маршрутизации в их числе: пакет кладёт
+          # китайские, 112086 доменов и 4324 сети.
+          #
+          # Вскрылось на 188-й сборке. Свои списки положили в образ
+          # именно затем, чтобы роутер приходил с рабочей маршрутизацией
+          # сразу, — а после прошивки в chnlist оказались всё те же
+          # китайские домены. Шаг распаковки идёт позже копирования и
+          # отменял всю затею.
+          #
+          # Возвращаем свои поверх — и только их. Повторить копирование
+          # целиком нельзя: тем же самым архив перекрывает api.lua, а
+          # его следующий шаг патчит уже в версии из пакета, и наша
+          # копия в репозитории с тех пор устарела.
+          for f in files-common/usr/share/passwall/rules/*; do
+            [ -f "$f" ] || continue
+            cp "$f" "files/usr/share/passwall/rules/$(basename "$f")"
+            echo "  $(basename "$f"): $(wc -l < "$f") строк"
+          done
+
       - name: Patch api.lua
         run: |
           python3 << 'EOF'
