@@ -1122,6 +1122,7 @@ if [ "$need_auth" = "1" ]; then
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Titan Router — Вход</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 /* ── Оформление входа ──────────────────────────────────────────
    Та же система, что и в панели и в мини-аппе Titan: поверхности
@@ -1190,14 +1191,15 @@ body::before{
 
 /* ── Знак ── */
 .logo-area{text-align:center;margin-bottom:30px}
-/* Градиент оставлен только здесь: это марка, а не элемент
-   управления, и спорить ему не с чем. */
+/* Знак и слово под ним — как на заставке мини-аппа. Градиент
+   живёт в самом знаке, поэтому надпись обычная: две градиентные
+   вещи рядом соревнуются, и выигрывает та, что крупнее. */
+.logo-mark{display:block;margin:0 auto 14px;width:72px;height:72px}
 .logo{
-  font-size:44px;font-weight:700;letter-spacing:-1.4px;line-height:1.05;
-  background:var(--grad);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  font-size:14px;font-weight:600;letter-spacing:.32em;text-indent:.32em;
+  color:var(--mut);line-height:1.1;
 }
-.logo-sub{font-size:14px;color:var(--mut);margin-top:8px;font-weight:400}
+.logo-sub{font-size:14px;color:var(--dim);margin-top:10px;font-weight:400}
 .logo-model{
   display:inline-flex;align-items:center;gap:7px;
   margin-top:12px;padding:6px 13px;
@@ -1313,7 +1315,8 @@ input::placeholder{color:var(--dim)}
 <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">Тёмная</button>
 <div class="login-wrap">
   <div class="logo-area">
-    <div class="logo">Titan Router</div>
+    <img class="logo-mark" src="/mark.svg" width="72" height="72" alt="">
+    <div class="logo">TITAN ROUTER</div>
     <div class="logo-sub">Панель управления роутером</div>
     ${ES_LOGIN_MODEL:+<div class="logo-model"><span class="logo-model-dot"></span>${ES_LOGIN_MODEL}</div>}
   </div>
@@ -1578,6 +1581,7 @@ case "${FORM_action:-}" in
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Перезагрузка — Titan Router</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 /* Экран ожидания. Шрифт объявляем, хотя роутер в этот момент уже
    уходит в перезагрузку и за файлом сходить не успеет: клиент
@@ -1624,7 +1628,7 @@ h1{font-size:21px;font-weight:700;letter-spacing:-.45px;margin-bottom:8px}
 </style>
 </head>
 <body>
-<div class="icon">⚡</div>
+<div class="icon"><svg class="ic"><use href="#i-refresh"/></svg></div>
 <h1>Роутер перезагружается</h1>
 <p class="sub">Страница обновится автоматически</p>
 <div class="countdown" id="cnt">30</div>
@@ -2077,7 +2081,7 @@ SUB_BANNER=""
 if [ "$SUB_UNPAID" = "1" ]; then
   SUB_BANNER='<div class="sub-unpaid" style="margin:0 0 12px;padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,#e23a3a,#b81f1f);border:1px solid rgba(255,120,120,.55);box-shadow:0 6px 28px rgba(200,0,0,.28)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <span style="font-size:22px">⚠️</span>
+      <span><svg class="ic ic-lg"><use href="#i-alert"/></svg></span>
       <span style="font-size:16px;font-weight:800;color:#fff">Подписка не оплачена</span>
     </div>
     <p style="margin:0 0 14px;color:#ffe2e2;line-height:1.55;font-size:13px">Доступ к VPN приостановлен. Чтобы продолжить пользоваться сервисом, оплатите подписку на сайте или через Telegram-бота.</p>
@@ -2251,6 +2255,7 @@ cat <<HTML
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Titan Router</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 /* ══ Оформление ══════════════════════════════════════════════
    Взято из мини-аппа Titan (api/static/miniapp/app.css): те же
@@ -2349,12 +2354,10 @@ a{color:inherit;text-decoration:none}
 .header .meta-chips{justify-self:center}
 .header #burgerBtn{justify-self:start}
 .brand{display:flex;align-items:center;gap:10px}
-/* Знак — единственное место, где градиент оправдан: это марка,
-   а не элемент управления. */
-.brand-icon{
-  width:34px;height:34px;border-radius:10px;flex-shrink:0;background:var(--grad);
-  display:flex;align-items:center;justify-content:center;font-size:17px;color:#04121f;
-}
+/* Знак стоит сам по себе, без подложки: у него свой градиент, и
+   синий квадрат под ним спорил с ним же. */
+.brand-icon{width:34px;height:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.brand-icon img{display:block;width:34px;height:34px}
 .brand h1{font-size:15px;font-weight:650;letter-spacing:-.25px;color:var(--txt)}
 .brand-sub{font-size:11px;color:var(--dim);margin-top:1px}
 .meta-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center}
@@ -2399,7 +2402,8 @@ a{color:inherit;text-decoration:none}
 /* Название в шапке меню — обычным цветом. Градиентный текст здесь
    спорил с градиентом на главной кнопке, и оба переставали быть
    главными. */
-.nav-header-title{font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--txt)}
+.nav-header-title{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.3px;color:var(--txt);white-space:nowrap}
+.nav-header-title img{display:block;flex:0 0 22px}
 .nav-close{
   width:32px;height:32px;border-radius:10px;background:var(--s3);border:0;
   color:var(--mut);font-size:16px;cursor:pointer;
@@ -2424,6 +2428,10 @@ a{color:inherit;text-decoration:none}
 }
 .nav a.primary:hover,.nav button.primary:hover{opacity:.92}
 .nav-sep{height:1px;background:rgba(255,255,255,.08);margin:8px 4px}
+/* Тональная строка меню: тот же акцент, но заливкой. */
+.nav a.accent,.nav button.accent{background:var(--acc-dim);color:var(--acc)}
+.nav a.accent .ic,.nav button.accent .ic{color:var(--acc)}
+.nav a.accent:hover,.nav button.accent:hover{background:rgba(59,147,255,.22)}
 /* Заголовок группы — как в настройках телефона: мелкий,
    приглушённый, капителью с разрядкой. */
 .nav-section-label{font-size:11.5px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;padding:10px 14px 4px}
@@ -2692,9 +2700,127 @@ input::placeholder{color:var(--dim)}
   .live-dot,.sdot.ok,.sdot.loading{animation:none}
   .btn,.wiz-progress-bar,.nav,.adv-wrap.open .adv-body,.wiz-box{transition:none;animation:none}
 }
+
+/* ══ Составные части из мини-аппа ══════════════════════════════
+   Значок, тональная плашка под ним, группа строк с волосяным
+   разделителем и шевроном, заголовок раздела. Это и есть та часть
+   оформления, которую нельзя получить перекраской: строка со
+   значком слева и шевроном справа читается нажимаемой, а строка
+   без них — просто текстом.
+   ═══════════════════════════════════════════════════════════ */
+.ic{width:20px;height:20px;flex:0 0 auto;display:block}
+.ic-lg{width:26px;height:26px}
+/* Значок сидит в тональной плашке, а не висит в воздухе: так он
+   отделён от текста и держит левый край списка. */
+.ic-box{
+  width:36px;height:36px;border-radius:10px;flex:0 0 36px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--acc);background:var(--acc-dim);
+}
+.ic-box .ic{width:19px;height:19px}
+.ic-box.ok{color:var(--ok);background:var(--ok-dim)}
+.ic-box.warn{color:var(--warn);background:var(--warn-dim)}
+.ic-box.bad{color:var(--bad);background:var(--bad-dim)}
+/* Заголовок раздела — как в настройках телефона: мелкий,
+   приглушённый, капителью, вне рамки. */
+.sec{margin:20px 4px 9px;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+.sec:first-child{margin-top:4px}
+.list{background:var(--s1);border-radius:var(--r);overflow:hidden;margin-bottom:12px;box-shadow:var(--edge)}
+.item{
+  display:flex;align-items:center;gap:13px;padding:13px var(--pad);position:relative;
+  width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left;
+}
+/* Разделитель начинается от текста, а не от края: так глаз видит,
+   где строка кончается содержательно, и группа читается блоком. */
+.item + .item::before{content:'';position:absolute;top:0;left:var(--pad);right:0;height:1px;background:rgba(255,255,255,.08)}
+.list.leading .item + .item::before{left:65px}
+button.item{cursor:pointer;transition:background .12s}
+button.item:active{background:rgba(255,255,255,.05)}
+.item .chev{color:var(--dim);flex:0 0 auto}
+.item b{font-weight:600}
+.grow{flex:1;min-width:0}
+.ellip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.muted{color:var(--mut)}
+.small{font-size:13px}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pill.ok{color:var(--ok);background:var(--ok-dim)}
+.pill.warn{color:var(--warn);background:var(--warn-dim)}
+.pill.bad{color:var(--bad);background:var(--bad-dim)}
+.pill.off{color:var(--mut);background:rgba(154,171,196,.12)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok .dot{animation:lpulse 2.6s ease-in-out infinite}
+[data-theme="light"] .item + .item::before{background:rgba(15,23,42,.08)}
+[data-theme="light"] button.item:active{background:rgba(15,23,42,.05)}
+[data-theme="light"] .pill.off{background:rgba(83,98,122,.12)}
+/* Размер значка по месту. Один .ic на 20 пикселей не годится
+   везде: в кнопке он спорит с подписью, в заголовке наоборот
+   теряется. */
+.btn .ic{width:17px;height:17px}
+.card-title .ic{width:20px;height:20px}
+.acc-title{display:inline-flex;align-items:center;gap:9px}
+.acc-title .ic{width:18px;height:18px;color:var(--acc)}
+.acc-arrow .ic,.adv-arr .ic{width:18px;height:18px}
+.acc-arrow{display:inline-flex}
+.adv-icon .ic{width:19px;height:19px}
+.nav a .ic,.nav button .ic{width:19px;height:19px;color:var(--mut)}
+.nav a.primary .ic,.nav button.primary .ic{color:inherit}
+.nav-home-btn .ic{color:var(--acc) !important}
+.pw-eye{display:flex;align-items:center}
+.pw-eye .ic{width:19px;height:19px}
+.copybtn{display:inline-flex;align-items:center;justify-content:center}
+.copybtn .ic{width:15px;height:15px}
+.toast .ic{width:15px;height:15px}
+.ir-label{display:inline-flex;align-items:center;gap:7px}
+.ir-label .ic{width:16px;height:16px;color:var(--dim)}
+.wiz-icon .ic{width:28px;height:28px}
+/* Значок на экране перезагрузки крутится сам — размер задаём тут,
+   в разметке у него только класс. */
+.icon .ic{width:56px;height:56px;color:var(--acc)}
 </style>
 </head>
 <body>
+<!-- Набор значков. Свой и один на всю панель: смешивать эмодзи с
+     обводкой нельзя, а тянуть чужой шрифт значков — значит поставить
+     экран клиента в зависимость от чужого адреса, который из России
+     может и не ответить. Эмодзи вдобавок рисует система, и один и тот
+     же значок на телефоне, в Windows и в Linux выглядит по-разному.
+     Все нарисованы по одной сетке 24x24, обводка 2, концы скруглены —
+     тот же набор и та же сетка, что в мини-аппе Titan. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M3.2 12h17.6"/><path d="M12 3.2c2.2 2.4 3.4 5.5 3.4 8.8s-1.2 6.4-3.4 8.8c-2.2-2.4-3.4-5.5-3.4-8.8S9.8 5.6 12 3.2z"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 9.4a11 11 0 0 1 15.6 0"/><path d="M7.4 12.8a6.5 6.5 0 0 1 9.2 0"/><path d="M10.6 16.2a2 2 0 0 1 2.8 0"/><path d="M12 19.4h.01"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v5.8c0 4.4-2.9 7.8-7 9-4.1-1.2-7-4.6-7-9V6z"/><path d="M9.2 12.2 11.3 14.3 15 10.6"/></symbol>
+<symbol id="i-router" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="13" width="18" height="8" rx="2.5"/><path d="M7 17h.01M10.5 17h.01"/><path d="M12 13V9"/><path d="M8.5 5.5 12 9l3.5-3.5"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.6a1.6 1.6 0 0 0 .32 1.76l.06.06a1.9 1.9 0 1 1-2.7 2.7l-.05-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.46v.17a1.9 1.9 0 1 1-3.8 0v-.09a1.6 1.6 0 0 0-1.04-1.46 1.6 1.6 0 0 0-1.77.32l-.05.06a1.9 1.9 0 1 1-2.7-2.7l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.46-.97H3.4a1.9 1.9 0 1 1 0-3.8h.09a1.6 1.6 0 0 0 1.46-1.04 1.6 1.6 0 0 0-.32-1.77l-.06-.05a1.9 1.9 0 1 1 2.7-2.7l.05.06a1.6 1.6 0 0 0 1.77.32h.08a1.6 1.6 0 0 0 .97-1.46V3.4a1.9 1.9 0 1 1 3.8 0v.09a1.6 1.6 0 0 0 .97 1.46 1.6 1.6 0 0 0 1.77-.32l.05-.06a1.9 1.9 0 1 1 2.7 2.7l-.06.05a1.6 1.6 0 0 0-.32 1.77v.08a1.6 1.6 0 0 0 1.46.97h.17a1.9 1.9 0 1 1 0 3.8h-.09a1.6 1.6 0 0 0-1.46.97z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"/><path d="M7.8 10.3 12 14.5l4.2-4.2"/><path d="M4.5 19.5h15"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14.5v-11"/><path d="M7.8 7.7 12 3.5l4.2 4.2"/><path d="M4.5 19.5h15"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5 9.5 17.5 19.5 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v8"/><path d="M6.7 7.2a7.8 7.8 0 1 0 10.6 0"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v5.2h-5.2"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11.5" height="11.5" rx="2.5"/><path d="M15 5.5a2.5 2.5 0 0 0-2.5-2.5h-6A2.5 2.5 0 0 0 4 5.5v6A2.5 2.5 0 0 0 6.5 14"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 12S5.6 5.8 12 5.8 21.8 12 21.8 12 18.4 18.2 12 18.2 2.2 12 2.2 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 6.1A9.8 9.8 0 0 1 12 5.8c6.4 0 9.8 6.2 9.8 6.2a17 17 0 0 1-3 3.9"/><path d="M6.4 8.2A17 17 0 0 0 2.2 12S5.6 18.2 12 18.2c1.4 0 2.6-.3 3.7-.8"/><path d="M4 4l16 16"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5 12 3.8l8.5 6.7v8.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M9.5 20.5v-7h5v7"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 17.5a9 9 0 1 1 16.8 0"/><path d="M12 13.5 16 9.8"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6 20.5 20.5"/></symbol>
+<symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.8h19M6.5 15h3"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12.4c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4 20.5l1.5-3.6C4.2 15.65 3.5 14.1 3.5 12.4c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.2A2 2 0 0 1 6 3.2h13v15.6H6a2 2 0 0 0-2 2z"/><path d="M4 18.8V5.2"/><path d="M8 7.5h7M8 11h7"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M12 7.6v5M12 16.2h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.8"/><path d="M12 11v5.4M12 7.8h.01"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 9.5 12 16l6.5-6.5"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 2.5 4.5 13.6h6.3l-.9 7.9 8.7-11.1h-6.3z"/></symbol>
+<symbol id="i-device" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M2 20h20"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H15"/><path d="M10 16.5 14.5 12 10 7.5"/><path d="M14.5 12h-11"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.2A8.8 8.8 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7z"/></symbol>
+<symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5 15 9"/><path d="M17 3.5v3M20.5 7h-3M13.5 4.5l1.5 1.5M20 12.5 18.5 14"/></symbol>
+</defs></svg>
 <div id="loadingOverlay">
   <div class="ld-ring"></div>
   <div class="ld-text" id="ld-text">Выполняется…</div>
@@ -2709,11 +2835,11 @@ input::placeholder{color:var(--dim)}
 
     <!-- Шаг 0: Добро пожаловать -->
     <div class="wiz-step active" id="wiz0">
-      <div class="wiz-icon">🚀</div>
+      <div class="wiz-icon"><svg class="ic ic-lg"><use href="#i-wand"/></svg></div>
       <div class="wiz-title">Добро пожаловать в Titan Router!</div>
-      <div class="wiz-desc">Настроим роутер за 3 шага:<br>📶 WiFi → 🌐 Интернет → 🔐 Пароль</div>
+      <div class="wiz-desc">Настроим роутер за 3 шага:<br>Wi-Fi, интернет, пароль</div>
       <div class="wiz-actions">
-        <button class="btn primary" type="button" onclick="wizNext()">Начать настройку →</button>
+        <button class="btn primary" type="button" onclick="wizNext()">Начать настройку<svg class="ic"><use href="#i-chev-r"/></svg></button>
       </div>
       <a href="/instruction/" style="display:block;margin-top:8px;font-size:12px;color:var(--acc);text-align:center;text-decoration:underline">Прочитать инструкцию перед началом</a>
       <button class="wiz-skip" type="button" onclick="wizFinish(true)">Пропустить, настрою позже</button>
@@ -2721,7 +2847,7 @@ input::placeholder{color:var(--dim)}
 
     <!-- Шаг 1: WiFi -->
     <div class="wiz-step" id="wiz1">
-      <div class="wiz-icon">📶</div>
+      <div class="wiz-icon"><svg class="ic ic-lg"><use href="#i-wifi"/></svg></div>
       <div class="wiz-title">Настройка WiFi</div>
       <div class="wiz-desc">Префикс <b>Titan-</b> добавится автоматически.<br>Пароль один для обеих сетей.</div>
       <div class="wiz-band-tabs">
@@ -2741,7 +2867,7 @@ input::placeholder{color:var(--dim)}
           <label>Пароль (мин. 8 символов)</label>
           <div class="pw-wrap">
             <input class="inp" id="wizKey" type="password" placeholder="Минимум 8 символов" autocomplete="new-password">
-            <button class="pw-eye" type="button" onclick="togglePw('wizKey')">👁</button>
+            <button class="pw-eye" type="button" onclick="togglePw('wizKey')"><svg class="ic"><use href="#i-eye"/></svg></button>
           </div>
         </div>
       </div>
@@ -2758,22 +2884,22 @@ input::placeholder{color:var(--dim)}
           <label>Пароль (мин. 8 символов)</label>
           <div class="pw-wrap">
             <input class="inp" id="wizKey5" type="password" placeholder="Минимум 8 символов" autocomplete="new-password">
-            <button class="pw-eye" type="button" onclick="togglePw('wizKey5')">👁</button>
+            <button class="pw-eye" type="button" onclick="togglePw('wizKey5')"><svg class="ic"><use href="#i-eye"/></svg></button>
           </div>
         </div>
         <div style="font-size:11px;color:var(--dim);text-align:center;margin-top:2px">Если оставить пустым — скопируется из 2.4 ГГц</div>
       </div>
       <div id="wizWifiErr" style="color:var(--bad);font-size:12px;display:none"></div>
       <div class="wiz-actions">
-        <button class="btn secondary" type="button" onclick="wizPrev()">← Назад</button>
-        <button class="btn primary" type="button" onclick="wizNext()">Далее →</button>
+        <button class="btn secondary" type="button" onclick="wizPrev()"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+        <button class="btn primary" type="button" onclick="wizNext()">Далее<svg class="ic"><use href="#i-chev-r"/></svg></button>
       </div>
       <button class="wiz-skip" type="button" onclick="wizNext(true)">Пропустить этот шаг</button>
     </div>
 
     <!-- Шаг 2: WAN / Интернет -->
     <div class="wiz-step" id="wiz2">
-      <div class="wiz-icon">🌐</div>
+      <div class="wiz-icon"><svg class="ic ic-lg"><use href="#i-globe"/></svg></div>
       <div class="wiz-title">Подключение к интернету</div>
       <div class="wiz-desc">Выберите тип подключения вашего провайдера.</div>
       <div class="wiz-field">
@@ -2796,7 +2922,7 @@ input::placeholder{color:var(--dim)}
           <label>Пароль провайдера</label>
           <div class="pw-wrap">
             <input class="inp" id="wizPppPass" type="password" placeholder="Пароль" autocomplete="new-password">
-            <button class="pw-eye" type="button" onclick="togglePw('wizPppPass')">👁</button>
+            <button class="pw-eye" type="button" onclick="togglePw('wizPppPass')"><svg class="ic"><use href="#i-eye"/></svg></button>
           </div>
         </div>
         <div id="wizL2tpServerWrap" class="wiz-field" style="display:none">
@@ -2825,15 +2951,15 @@ input::placeholder{color:var(--dim)}
       </div>
       <div id="wizWanErr" style="color:var(--bad);font-size:12px;display:none"></div>
       <div class="wiz-actions">
-        <button class="btn secondary" type="button" onclick="wizPrev()">← Назад</button>
-        <button class="btn primary" type="button" onclick="wizNext()">Далее →</button>
+        <button class="btn secondary" type="button" onclick="wizPrev()"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+        <button class="btn primary" type="button" onclick="wizNext()">Далее<svg class="ic"><use href="#i-chev-r"/></svg></button>
       </div>
       <button class="wiz-skip" type="button" onclick="wizNext(true)">Пропустить этот шаг</button>
     </div>
 
     <!-- Шаг 3: Пароль панели -->
     <div class="wiz-step" id="wiz3">
-      <div class="wiz-icon">🔐</div>
+      <div class="wiz-icon"><svg class="ic ic-lg"><use href="#i-lock"/></svg></div>
       <div class="wiz-title">Пароль панели управления</div>
       <div class="wiz-desc">Смените стандартный <b>admin / admin</b> на свой.<br>Это защитит панель от посторонних.</div>
       <div class="wiz-field">
@@ -2844,12 +2970,12 @@ input::placeholder{color:var(--dim)}
         <label>Новый пароль (мин. 8 символов)</label>
         <div class="pw-wrap">
           <input class="inp" id="wizPass" type="password" placeholder="Минимум 8 символов" autocomplete="new-password">
-          <button class="pw-eye" type="button" onclick="togglePw('wizPass')">👁</button>
+          <button class="pw-eye" type="button" onclick="togglePw('wizPass')"><svg class="ic"><use href="#i-eye"/></svg></button>
         </div>
       </div>
       <div id="wizCredsErr" style="color:var(--bad);font-size:12px;display:none"></div>
       <div class="wiz-actions">
-        <button class="btn secondary" type="button" onclick="wizPrev()">← Назад</button>
+        <button class="btn secondary" type="button" onclick="wizPrev()"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
         <button class="btn primary" type="button" onclick="wizNext()">Сохранить и завершить</button>
       </div>
       <button class="wiz-skip" type="button" onclick="wizFinish(false)">Оставить admin/admin (небезопасно)</button>
@@ -2860,24 +2986,21 @@ input::placeholder{color:var(--dim)}
 <!-- Предупреждение о дефолтном пароле -->
 <div id="modal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:300;padding:16px" onclick="modalClose()">
   <div style="max-width:480px;width:100%;background:var(--s1);border:1px solid var(--b2);border-radius:20px;padding:24px;animation:fadeUp .3s ease;box-shadow:0 8px 40px rgba(0,0,0,.18)" onclick="event.stopPropagation()">
-    <h3 style="margin:0 0 10px;font-size:16px;color:var(--txt)">⚠️ Смените данные для входа</h3>
+    <h3 style="margin:0 0 10px;font-size:16px;color:var(--txt)"><svg class="ic"><use href="#i-alert"/></svg> Смените данные для входа</h3>
     <p style="margin:0 0 16px;color:var(--mut);line-height:1.6">Сейчас установлены стандартные данные: <b style="color:var(--txt)">admin / admin</b>. Перейдите в раздел <b style="color:var(--txt)">«Доступ к панели управления»</b> в расширенных настройках и задайте свои значения.</p>
     <button class="btn primary" type="button" onclick="modalClose()" style="width:100%">Понятно</button>
   </div>
 </div>
 
-<div style="width:100%;text-align:center;padding:20px 0 4px;background:var(--bg)">
-  <div id="atlTitle" style="font-size:32px;font-weight:800;letter-spacing:-1.5px;background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1">Titan Router</div>
-</div>
 <div class="wrap">
   <div class="header">
-    <button id="burgerBtn" type="button" onclick="menuToggle()" aria-label="Меню" autocomplete="off">☰</button>
+    <button id="burgerBtn" type="button" onclick="menuToggle()" aria-label="Меню" autocomplete="off"><svg class="ic ic-lg"><use href="#i-menu"/></svg></button>
     <div class="meta-chips" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center">
       <div class="mchip mchip-mac">
         <span style="color:var(--dim);font-size:11px;margin-right:2px">MAC</span>
         <span id="deviceid" class="copyid">${ES_MAC}</span>
-        <button class="copybtn" type="button" onclick="copyText('deviceid')" style="padding:4px 8px;min-height:28px;font-size:11px">📋</button>
-        <span id="copied" class="toast">✓</span>
+        <button class="copybtn" type="button" onclick="copyText('deviceid')" style="padding:4px 8px;min-height:28px;font-size:11px"><svg class="ic"><use href="#i-copy"/></svg></button>
+        <span id="copied" class="toast"><svg class="ic"><use href="#i-check"/></svg></span>
       </div>
       <div class="mchip" id="vpn-hdr-chip" onclick="pact('${BYPASS_ACT}')" style="cursor:pointer;gap:6px" title="Нажмите для переключения VPN">
         <span class="sdot ${BYPASS_DOT}" id="sdot-bypass-hdr"></span>
@@ -2885,7 +3008,10 @@ input::placeholder{color:var(--dim)}
         <span style="font-size:11px;color:var(--dim)" id="sv-bypass-hdr">${BYPASS_LABEL}</span>
       </div>
     </div>
-    <div></div><!-- grid col 3: spacer для симметрии -->
+    <div class="brand">
+      <div class="brand-icon"><img src="/logo.svg" width="34" height="34" alt=""></div>
+      <div><h1 id="atlTitle">Titan Router</h1><div class="brand-sub">${ES_NAME}</div></div>
+    </div>
   </div>
 
   <!-- ── Overlay (закрывает sidebar при клике вне) ── -->
@@ -2894,29 +3020,29 @@ input::placeholder{color:var(--dim)}
   <!-- ── Навигация — боковая панель ── -->
   <nav class="nav" id="mainNav" role="navigation" aria-label="Главное меню">
     <div class="nav-header">
-      <span class="nav-header-title">Titan Router</span>
-      <button class="nav-close" type="button" onclick="menuClose()" aria-label="Закрыть">✕</button>
+      <span class="nav-header-title"><img src="/logo.svg" width="22" height="22" alt="">Titan Router</span>
+      <button class="nav-close" type="button" onclick="menuClose()" aria-label="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="nav-items">
-      <button type="button" class="nav-home-btn" onclick="goHome()">Главное меню</button>
+      <button type="button" class="nav-home-btn" onclick="goHome()"><svg class="ic"><use href="#i-home"/></svg><span class="grow">Главное меню</span></button>
       <div class="nav-sep"></div>
       <span class="nav-section-label">Сервисы</span>
-      <a class="primary" href="javascript:void(0)" onclick="menuBlank('${LINK_SUB}')">Подписка</a>
-      <a href="javascript:void(0)" onclick="menuBlank('${LINK_SUPPORT}')">Поддержка</a>
-      <a href="javascript:void(0)" onclick="menuBlank('/instruction/')">Инструкция</a>
+      <a class="primary" href="javascript:void(0)" onclick="menuBlank('${LINK_SUB}')"><svg class="ic"><use href="#i-card"/></svg><span class="grow">Подписка</span></a>
+      <a href="javascript:void(0)" onclick="menuBlank('${LINK_SUPPORT}')"><svg class="ic"><use href="#i-chat"/></svg><span class="grow">Поддержка</span></a>
+      <a href="javascript:void(0)" onclick="menuBlank('/instruction/')"><svg class="ic"><use href="#i-book"/></svg><span class="grow">Инструкция</span></a>
       <div class="nav-sep"></div>
       <span class="nav-section-label">Управление</span>
-      <button type="button" onclick="pact('restart_inet')">Перезапустить интернет</button>
-      <button class="primary" type="button" onclick="pact('passwall_update')">Обновить подписку</button>
-      <button type="button" id="navBypassBtn" onclick="pact('${BYPASS_ACT}')" data-act="${BYPASS_ACT}">${BYPASS_BTN}</button>
+      <button type="button" onclick="pact('restart_inet')"><svg class="ic"><use href="#i-refresh"/></svg><span class="grow">Перезапустить интернет</span></button>
+      <button class="accent" type="button" onclick="pact('passwall_update')"><svg class="ic"><use href="#i-download"/></svg><span class="grow">Обновить подписку</span></button>
+      <button type="button" id="navBypassBtn" onclick="pact('${BYPASS_ACT}')" data-act="${BYPASS_ACT}"><svg class="ic"><use href="#i-shield"/></svg><span class="grow lbl">${BYPASS_BTN}</span></button>
       <div class="nav-sep"></div>
-      <button type="button" onclick="otaOpenMenu()">Обновить роутер</button>
-      <button type="button" onclick="advOpenMenu()">Расширенные настройки</button>
-      <button type="button" onclick="menuClose();wizShow()">Мастер настройки</button>
+      <button type="button" onclick="otaOpenMenu()"><svg class="ic"><use href="#i-upload"/></svg><span class="grow">Обновить роутер</span></button>
+      <button type="button" onclick="advOpenMenu()"><svg class="ic"><use href="#i-gear"/></svg><span class="grow">Расширенные настройки</span></button>
+      <button type="button" onclick="menuClose();wizShow()"><svg class="ic"><use href="#i-wand"/></svg><span class="grow">Мастер настройки</span></button>
       <div class="nav-sep"></div>
-      <button type="button" onclick="pact('logout')" style="color:rgba(255,150,150,.8)">Выйти</button>
+      <button type="button" onclick="pact('logout')" style="color:var(--bad)"><svg class="ic"><use href="#i-logout"/></svg><span class="grow">Выйти</span></button>
       <div class="nav-sep" style="margin-top:auto"></div>
-      <button type="button" id="themeToggleBtn" onclick="toggleTheme()" class="nav-theme-btn">Тёмная тема</button>
+      <button type="button" id="themeToggleBtn" onclick="toggleTheme()" class="nav-theme-btn"><svg class="ic"><use href="#i-moon"/></svg><span class="grow lbl">Тёмная тема</span></button>
     </div>
   </nav>
 
@@ -2951,7 +3077,7 @@ input::placeholder{color:var(--dim)}
   <div id="mainCards">
   <div class="top-grid">
     <div class="card">
-            <div class="card-title">🌐 Настройки интернета</div>
+            <div class="card-title"><span class="ic-box"><svg class="ic"><use href="#i-globe"/></svg></span>Настройки интернета</div>
             <div class="info-row">
               <span class="ir-label">Тип подключения</span>
               <span class="ir-value"><span class="badge badge-ok">${ES_WAN}</span></span>
@@ -2984,7 +3110,7 @@ input::placeholder{color:var(--dim)}
               <label>Пароль PPPoE (из договора с провайдером)</label>
               <div class="pw-wrap">
                 <input id="pppoe_pass" type="password" value="${ES_PASS}" placeholder="Введите пароль">
-                <button class="pw-eye" type="button" onclick="togglePw('pppoe_pass')">👁</button>
+                <button class="pw-eye" type="button" onclick="togglePw('pppoe_pass')"><svg class="ic"><use href="#i-eye"/></svg></button>
               </div>
             </div>
             <div id="l2tp_fields" class="hidden">
@@ -2995,7 +3121,7 @@ input::placeholder{color:var(--dim)}
               <label>Пароль L2TP</label>
               <div class="pw-wrap">
                 <input id="l2tp_pass" type="password" value="${ES_PASS}" placeholder="Введите пароль">
-                <button class="pw-eye" type="button" onclick="togglePw('l2tp_pass')">👁</button>
+                <button class="pw-eye" type="button" onclick="togglePw('l2tp_pass')"><svg class="ic"><use href="#i-eye"/></svg></button>
               </div>
             </div>
             <div id="pptp_fields" class="hidden">
@@ -3006,12 +3132,12 @@ input::placeholder{color:var(--dim)}
               <label>Пароль PPTP</label>
               <div class="pw-wrap">
                 <input id="pptp_pass" type="password" value="${ES_PASS}" placeholder="Введите пароль">
-                <button class="pw-eye" type="button" onclick="togglePw('pptp_pass')">👁</button>
+                <button class="pw-eye" type="button" onclick="togglePw('pptp_pass')"><svg class="ic"><use href="#i-eye"/></svg></button>
               </div>
             </div>
             <div class="row">
-              <button class="btn primary" style="flex:1" type="button" onclick="submitWan()">💾 Сохранить</button>
-              <button class="btn danger" type="button" onclick="pact('reboot')" title="Перезагрузить роутер">↺ Перезагрузить роутер</button>
+              <button class="btn primary" style="flex:1" type="button" onclick="submitWan()"><svg class="ic"><use href="#i-check"/></svg>Сохранить</button>
+              <button class="btn danger" type="button" onclick="pact('reboot')" title="Перезагрузить роутер"><svg class="ic"><use href="#i-power"/></svg>Перезагрузить роутер</button>
             </div>
             <div class="debug-section" style="margin-top:8px">
             <div class="debug-body" id="dbgBody" style="border:none;background:none;padding:0">
@@ -3020,7 +3146,7 @@ input::placeholder{color:var(--dim)}
             </div><!-- /debug-section -->
           </div>
     <div class="card">
-            <div class="card-title">🏠 Настройки Wi-Fi</div>
+            <div class="card-title"><span class="ic-box"><svg class="ic"><use href="#i-wifi"/></svg></span>Настройки Wi-Fi</div>
             <label>Название сети 2.4 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
               <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
@@ -3030,7 +3156,7 @@ input::placeholder{color:var(--dim)}
             <label>Пароль Wi-Fi 2.4 ГГц — минимум 8 символов</label>
             <div class="pw-wrap">
               <input id="key_24" type="password" value="${ES_24_KEY}" placeholder="Минимум 8 символов">
-              <button class="pw-eye" type="button" onclick="togglePw('key_24')">👁</button>
+              <button class="pw-eye" type="button" onclick="togglePw('key_24')"><svg class="ic"><use href="#i-eye"/></svg></button>
             </div>
             <label>Название сети 5 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
@@ -3041,11 +3167,11 @@ input::placeholder{color:var(--dim)}
             <label>Пароль Wi-Fi 5 ГГц — минимум 8 символов</label>
             <div class="pw-wrap">
               <input id="key_5" type="password" value="${ES_5_KEY}" placeholder="Минимум 8 символов">
-              <button class="pw-eye" type="button" onclick="togglePw('key_5')">👁</button>
+              <button class="pw-eye" type="button" onclick="togglePw('key_5')"><svg class="ic"><use href="#i-eye"/></svg></button>
             </div>
             <div class="row">
               <button class="btn primary" style="flex:1" type="button" onclick="saveWifi()">
-                💾 Сохранить Wi-Fi
+                <svg class="ic"><use href="#i-check"/></svg>Сохранить Wi-Fi
               </button>
             </div>
           </div>
@@ -3054,7 +3180,7 @@ input::placeholder{color:var(--dim)}
   <!-- ── VPN и сервер (главный экран) ── -->
   <div class="card" style="margin-top:4px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:14px;font-weight:700;color:var(--txt)">🛡 VPN и сервер</span>
+      <span style="font-size:14px;font-weight:700;color:var(--txt)"><svg class="ic"><use href="#i-shield"/></svg>VPN и сервер</span>
       <span id="bypass-label-card" class="badge badge-${BYPASS_DOT}">${BYPASS_LABEL}</span>
     </div>
     <div class="info-hint warn" id="bypass-desc"${BYPASS_DESC:+ style="display:flex"}${BYPASS_DESC:- style="display:none"}>${BYPASS_DESC}</div>
@@ -3067,7 +3193,7 @@ input::placeholder{color:var(--dim)}
         <div style="font-size:11px;color:var(--dim);margin-bottom:4px;font-weight:600">АКТИВНЫЙ СЕРВЕР: <span style="color:var(--txt);font-weight:700">${ES_PW_CURRENT_LABEL}</span></div>
         <select id="pw_node">${PW_OPTIONS}</select>
         <div class="row" style="margin-top:8px">
-          <button class="btn secondary" type="button" onclick="pingNodes()" id="pingBtn" title="URL Test — проверка соединения с каждым сервером">🏓 URL Test</button>
+          <button class="btn secondary" type="button" onclick="pingNodes()" id="pingBtn" title="URL Test — проверка соединения с каждым сервером"><svg class="ic"><use href="#i-gauge"/></svg>URL Test</button>
           <button class="btn primary" style="flex:1" type="button" onclick="pact('pw_change_node',{pw_node:g('pw_node').value})">Применить</button>
         </div>
         <div id="ping-status" style="font-size:11px;color:var(--dim);text-align:center;margin-top:6px;min-height:16px"></div>
@@ -3080,13 +3206,13 @@ input::placeholder{color:var(--dim)}
   <div class="adv-wrap" id="advSection" style="display:none">
     <div class="adv-hdr" id="advHdr" onclick="advToggle()" aria-expanded="false">
       <div class="adv-hdr-left">
-        <span class="adv-icon">⚙️</span>
+        <span class="adv-icon"><svg class="ic"><use href="#i-gear"/></svg></span>
         <div>
           <div class="adv-title">Расширенные настройки</div>
           <div class="adv-sub">Гостевая сеть · Доступ · Обновление · Трафик</div>
         </div>
       </div>
-      <div class="adv-arr" id="advArr">▾</div>
+      <div class="adv-arr" id="advArr"><svg class="ic"><use href="#i-chev-d"/></svg></div>
     </div>
     <div class="adv-body" id="advBody">
       <div class="adv-inner">
@@ -3151,7 +3277,7 @@ input::placeholder{color:var(--dim)}
     </div>
     <!-- Диагностика соединения в расширенных -->
     <div class="debug-section" style="margin:0 0 8px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rx);padding:10px 14px">
-      <div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">📋 Диагностика соединения</div>
+      <div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px"><svg class="ic"><use href="#i-info"/></svg>Диагностика соединения</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 16px">
         <span style="font-size:12px;color:var(--mut)">Интерфейс: <b style="color:var(--txt)" id="adv-dbg-if">${ES_WANIF}</b></span>
         <span style="font-size:12px;color:var(--mut)">Устройство: <b style="color:var(--txt)" id="adv-dbg-l3">${ES_SYS_WAN_L3}</b></span>
@@ -3163,8 +3289,8 @@ input::placeholder{color:var(--dim)}
     </div>
     <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="guest">
-          <span class="acc-title">🏠 Гостевая сеть и родительский контроль</span>
-          <span class="acc-arrow">▾</span>
+          <span class="acc-title"><svg class="ic"><use href="#i-shield"/></svg>Гостевая сеть и родительский контроль</span>
+          <span class="acc-arrow"><svg class="ic"><use href="#i-chev-d"/></svg></span>
         </div>
         <div class="acc-body" id="acc-guest" style="display:none">
           <div class="acc-inner">
@@ -3180,24 +3306,24 @@ input::placeholder{color:var(--dim)}
                     <label>Пароль (мин. 8 символов, или пусто — открытая)</label>
                     <div class="pw-wrap">
                       <input id="key_guest" type="password" value="${ES_GUEST_KEY}" placeholder="Без пароля — открытая сеть">
-                      <button class="pw-eye" type="button" onclick="togglePw('key_guest')">👁</button>
+                      <button class="pw-eye" type="button" onclick="togglePw('key_guest')"><svg class="ic"><use href="#i-eye"/></svg></button>
                     </div>
                     <div class="row">
                       <button class="btn primary" style="flex:1" type="button"
                         onclick="saveGuest()">
-                        ✅ Включить гостевую
+                        <svg class="ic"><use href="#i-check"/></svg>Включить гостевую
                       </button>
                     </div>
                     <div class="row">
                       <button class="btn danger" style="flex:1" type="button" onclick="pact('guest_disable')">
-                        ✖ Отключить гостевую
+                        <svg class="ic"><use href="#i-x"/></svg>Отключить гостевую
                       </button>
                     </div>
                   </div>
             <div class="card">
                     <div class="info-hint">ℹ️ Работает только для гостевой сети. Прямой интернет — без VPN.</div>
                     <div class="info-row" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-                      <span class="ir-label">🛡 Безопасный DNS</span>
+                      <span class="ir-label"><svg class="ic"><use href="#i-shield"/></svg>Безопасный DNS</span>
                       <label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--txt);font-size:12px">
                         <input type="checkbox" id="par_dns" style="width:18px;min-height:18px;margin:0;cursor:pointer" ${PAR_DNS_CHK}>
                         <span style="color:var(--mut);font-size:11px">Yandex.DNS Family</span>
@@ -3226,8 +3352,8 @@ input::placeholder{color:var(--dim)}
                     <input id="par_domains" value="${ES_PAR_DOMAINS}" placeholder="tiktok.com, youtube.com, ...">
                     <p style="font-size:11px;color:var(--dim);margin:4px 0 10px;text-align:center">Домены через запятую. Работает для гостевой сети.</p>
                     <div class="row">
-                      <button class="btn primary" style="flex:1" type="button" onclick="saveParental()">💾 Сохранить</button>
-                      <button class="btn danger" type="button" onclick="pact('parental_off')">✖ Отключить</button>
+                      <button class="btn primary" style="flex:1" type="button" onclick="saveParental()"><svg class="ic"><use href="#i-check"/></svg>Сохранить</button>
+                      <button class="btn danger" type="button" onclick="pact('parental_off')"><svg class="ic"><use href="#i-x"/></svg>Отключить</button>
                     </div>
                   </div>
           </div>
@@ -3238,8 +3364,8 @@ input::placeholder{color:var(--dim)}
 
       <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="access">
-          <span class="acc-title">🔐 Доступ к панели управления</span>
-          <span class="acc-arrow">▾</span>
+          <span class="acc-title"><svg class="ic"><use href="#i-lock"/></svg>Доступ к панели управления</span>
+          <span class="acc-arrow"><svg class="ic"><use href="#i-chev-d"/></svg></span>
         </div>
         <div class="acc-body" id="acc-access" style="display:none">
           <div class="acc-inner">
@@ -3249,11 +3375,11 @@ input::placeholder{color:var(--dim)}
                   <label>Новый пароль — только латинские буквы и цифры, минимум 8 символов</label>
                   <div class="pw-wrap">
                     <input id="new_pass" type="password" value="" autocomplete="new-password" placeholder="Введите новый пароль (мин. 8 символов)">
-                    <button class="pw-eye" type="button" onclick="togglePw('new_pass')">👁</button>
+                    <button class="pw-eye" type="button" onclick="togglePw('new_pass')"><svg class="ic"><use href="#i-eye"/></svg></button>
                   </div>
                   <div class="row">
                     <button class="btn primary" style="flex:1" type="button" onclick="saveAuth()">
-                      💾 Сохранить доступ
+                      <svg class="ic"><use href="#i-check"/></svg>Сохранить доступ
                     </button>
                   </div>
                   <p style="font-size:11px;color:var(--mut);margin:8px 0 0;line-height:1.6">После сохранения вас перенаправят на страницу входа с новыми данными.</p>
@@ -3264,8 +3390,8 @@ input::placeholder{color:var(--dim)}
 
       <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="update">
-          <span class="acc-title">🧩 Обновление прошивки</span>
-          <span class="acc-arrow">▾</span>
+          <span class="acc-title"><svg class="ic"><use href="#i-download"/></svg>Обновление прошивки</span>
+          <span class="acc-arrow"><svg class="ic"><use href="#i-chev-d"/></svg></span>
         </div>
         <div class="acc-body" id="acc-update" style="display:none">
           <div class="acc-inner">
@@ -3280,12 +3406,12 @@ input::placeholder{color:var(--dim)}
                   </div>
                   <div class="info-hint" id="ota-hint">${ES_OTA_HINT}</div>
                   <div class="row">
-                    <button class="btn secondary" style="flex:1" type="button" id="otaCheckBtn" ${OTA_DIS} onclick="pact('ota_check')">🔍 Проверить</button>
-                    <button class="btn primary" style="flex:1" type="button" id="otaNowBtn" ${OTA_DIS} onclick="otaUpdateNow()">⬇ Обновить сейчас</button>
+                    <button class="btn secondary" style="flex:1" type="button" id="otaCheckBtn" ${OTA_DIS} onclick="pact('ota_check')"><svg class="ic"><use href="#i-search"/></svg>Проверить</button>
+                    <button class="btn primary" style="flex:1" type="button" id="otaNowBtn" ${OTA_DIS} onclick="otaUpdateNow()"><svg class="ic"><use href="#i-download"/></svg>Обновить сейчас</button>
                   </div>
                   <pre id="ota-log" style="display:none;margin:10px 0 0;padding:10px;border-radius:var(--rx);background:rgba(100,116,139,.07);border:1px solid rgba(100,116,139,.14);color:var(--mut);font-size:11px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto"></pre>
                   <div class="row">
-                    <button class="btn danger" type="button" onclick="pact('reboot')">↺ Перезагрузить роутер</button>
+                    <button class="btn danger" type="button" onclick="pact('reboot')"><svg class="ic"><use href="#i-power"/></svg>Перезагрузить роутер</button>
                   </div>
                 </div>
           </div>
@@ -3294,25 +3420,25 @@ input::placeholder{color:var(--dim)}
       </div>
       <div class="acc">
         <div class="acc-hdr" onclick="accToggle(this)" data-id="stats">
-          <span class="acc-title">📊 Трафик и устройства</span>
-          <span class="acc-arrow">▾</span>
+          <span class="acc-title"><svg class="ic"><use href="#i-gauge"/></svg>Трафик и устройства</span>
+          <span class="acc-arrow"><svg class="ic"><use href="#i-chev-d"/></svg></span>
         </div>
         <div class="acc-body" id="acc-stats" style="display:none">
           <div class="acc-inner">
           <div class="acc-grid">
             <!-- ── Трафик ── -->
             <div class="card">
-              <div class="card-title">📊 Трафик с момента загрузки</div>
+              <div class="card-title"><span class="ic-box"><svg class="ic"><use href="#i-gauge"/></svg></span>Трафик с момента загрузки</div>
               <div class="info-row">
                 <span class="ir-label">Интерфейс WAN</span>
                 <span class="ir-value" id="st-iface" style="font-family:monospace;font-size:11px"><span style="color:var(--dim)">…</span></span>
               </div>
               <div class="info-row">
-                <span class="ir-label">↓ Получено данных</span>
+                <span class="ir-label"><svg class="ic"><use href="#i-download"/></svg>Получено данных</span>
                 <span class="ir-value" id="st-rx"><span style="color:var(--dim)">…</span></span>
               </div>
               <div class="info-row">
-                <span class="ir-label">↑ Отправлено данных</span>
+                <span class="ir-label"><svg class="ic"><use href="#i-upload"/></svg>Отправлено данных</span>
                 <span class="ir-value" id="st-tx"><span style="color:var(--dim)">…</span></span>
               </div>
               <div class="info-row" style="border-bottom:0">
@@ -3323,7 +3449,7 @@ input::placeholder{color:var(--dim)}
             <!-- ── Устройства ── -->
             <div class="card" id="devCard">
               <div class="card-title" style="justify-content:space-between">
-                <span>💻 Устройства</span>
+                <span><svg class="ic"><use href="#i-device"/></svg>Устройства</span>
                 <span id="dev-count" style="font-size:11px;color:var(--dim);font-weight:500"></span>
               </div>
               <div id="devList" style="display:grid;gap:0">
@@ -3684,7 +3810,7 @@ function applyStatus(d){
   if(bbtn){ bbtn.textContent = newTxt; bbtn.setAttribute('onclick', "pact('"+newAct+"')"); }
   // Обновляем nav-кнопку и si-bypass onclick в соответствии с текущим состоянием
   var nbtn = g('navBypassBtn');
-  if(nbtn){ nbtn.textContent = newTxt; nbtn.setAttribute('onclick', "pact('"+newAct+"')"); nbtn.setAttribute('data-act', newAct); }
+  if(nbtn){ (nbtn.querySelector('.lbl') || nbtn).textContent = newTxt; nbtn.setAttribute('onclick', "pact('"+newAct+"')"); nbtn.setAttribute('data-act', newAct); }
   var sibd = g('siBypassDiv');
   if(sibd){ sibd.setAttribute('onclick', "pact('"+newAct+"')"); sibd.setAttribute('data-act', newAct); }
   // VPN чип в шапке
@@ -3815,7 +3941,12 @@ function togglePw(id){
   // Ищем кнопку-глазок внутри того же pw-wrap
   var wrap = el.parentNode;
   var btn = wrap ? wrap.querySelector('.pw-eye') : null;
-  if(btn) btn.textContent = isPw ? "\uD83D\uDE48" : "\uD83D\uDC41";
+  if(btn){
+    // Значок меняем подменой ссылки на символ, а не текстом: текст
+    // затёр бы <svg> целиком, и кнопка осталась бы пустой.
+    var u = btn.querySelector('use');
+    if(u) u.setAttribute('href', isPw ? '#i-eye-off' : '#i-eye');
+  }
 }
 
 
@@ -4024,7 +4155,7 @@ function goHome(){
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme', t || 'dark');
   var btn = document.getElementById('themeToggleBtn');
-  if(btn) btn.textContent = (t === 'light') ? 'Тёмная тема' : 'Светлая тема';
+  if(btn) (btn.querySelector('.lbl') || btn).textContent = (t === 'light') ? 'Тёмная тема' : 'Светлая тема';
 }
 function toggleTheme(){
   var cur = document.documentElement.getAttribute('data-theme') || 'dark';
@@ -4046,7 +4177,7 @@ function toggleTheme(){
   document.addEventListener('DOMContentLoaded',function(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';
     var btn = document.getElementById('themeToggleBtn');
-    if(btn) btn.textContent = (cur === 'light') ? 'Тёмная тема' : 'Светлая тема';
+    if(btn) (btn.querySelector('.lbl') || btn).textContent = (cur === 'light') ? 'Тёмная тема' : 'Светлая тема';
   });
 })();
 
