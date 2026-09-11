@@ -160,37 +160,33 @@ fi
 # только то, что перечислено. Для этого chn_list переключён в режим
 # proxy, и chnlist с chnroute содержат не «китайские» адреса, а наши
 # прокси-списки. gfwlist при этом не используется вовсе.
-# Зеркал несколько, и перечислены они все. PassWall скачивает каждый
-# адрес из списка и складывает строки в одно множество — дубликаты
-# схлопываются сами (rule_update.lua: rule_dataset[line] = true).
-# Значит три одинаковых зеркала дают не тройной список, а тройную
-# страховку: недоступное просто не добавит ничего, остальные наполнят
-# набор.
+# Адрес ровно один, и это не упрощение, а требование PassWall.
 #
-# Выбиральщик с проверкой доступности был бы лишней деталью: у него
-# кэш, который протухает, и состояние, которое расходится с жизнью.
-# Здесь нет ни того, ни другого.
+# Опция списочная, и просится перечислить все зеркала. Проверено на
+# стенде 12.09.2026 — так делать нельзя: PassWall скачивает все адреса,
+# но при отказе любого выбрасывает результат целиком, вместе с тем, что
+# успешно скачалось с живых (rule_update.lua, sret=1). Урезали chnlist
+# до 50 строк, дали рабочее зеркало и мёртвый адрес — список остался
+# на пятидесяти строках. Каждое лишнее зеркало не страхует, а повышает
+# шанс, что обновление не пройдёт вовсе.
 #
-# Понадобилось это 11.09.2026: titanvps.pro оказался недоступен с
-# роутера при живом интернете — не отвечал ни на образ прошивки, ни на
-# списки. С единственным адресом это значит, что маршрутизация у
-# клиента застывает на том, что было в образе, и никто об этом не
-# узнает.
-LISTS_MIRRORS="https://storage.yandexcloud.net/234588/lists
-https://titanvps.pro/lists
-https://vbotrouters.titanvps.click/lists"
+# Запасные зеркала живут в /usr/bin/titan_lists_mirror.sh: он
+# перебирает их сам и прописывает сюда одно, которое отвечает.
+LISTS_BASE="https://storage.yandexcloud.net/234588/lists"
 LISTS_FIXED=0
 URLS_FIXED=0
-for _pair in   "chnlist_url=proxy-domains.lst"   "chnroute_url=proxy-ip.lst"   "gfwlist_url=proxy-domains.lst"
+for _pair in   "chnlist_url=$LISTS_BASE/proxy-domains.lst"   "chnroute_url=$LISTS_BASE/proxy-ip.lst"   "gfwlist_url=$LISTS_BASE/proxy-domains.lst"
 do
   _opt="${_pair%%=*}"
-  _file="${_pair#*=}"
-  # uci отдаёт список через пробел — в том же виде и собираем для сверки,
-  # чтобы не переписывать опцию на каждой загрузке.
-  _want=""
-  for _m in $LISTS_MIRRORS; do
-    [ -z "$_want" ] && _want="$_m/$_file" || _want="$_want $_m/$_file"
-  done
+  _want="${_pair#*=}"
+  _cur="$(uci -q get passwall.@global_rules[0].$_opt 2>/dev/null || true)"
+  if [ "$_cur" != "$_want" ]; then
+    uci -q delete passwall.@global_rules[0].$_opt 2>/dev/null || true
+    uci -q add_list passwall.@global_rules[0].$_opt="$_want" || true
+    LISTS_FIXED=1
+    URLS_FIXED=1
+  fi
+done
   _cur="$(uci -q get passwall.@global_rules[0].$_opt 2>/dev/null || true)"
   if [ "$_cur" != "$_want" ]; then
     uci -q delete passwall.@global_rules[0].$_opt 2>/dev/null || true
