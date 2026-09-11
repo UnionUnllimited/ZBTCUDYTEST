@@ -476,7 +476,14 @@ fi
 
 # ── Добавляем titan.lan hostname ──────────────────────────────
 # 1. /etc/hosts
-grep -qF "titan.lan" /etc/hosts 2>/dev/null || echo "$LAN_IP titan.lan" >> /etc/hosts
+# Строку переписываем, а не дописываем при отсутствии. Раньше здесь
+# стояла проверка «есть ли titan.lan» и запись только если нет: стоило
+# клиенту сменить адрес роутера в панели, как запись оставалась со
+# старым адресом навсегда. dnsmasq читает и /etc/hosts, и свой address,
+# поэтому имя начинало отвечать двумя адресами, один из которых ведёт
+# в никуда, и панель открывалась через раз.
+sed -i '/[[:space:]]titan\.lan$/d' /etc/hosts 2>/dev/null || true
+echo "$LAN_IP titan.lan" >> /etc/hosts
 
 # 2. dnsmasq address record (работает даже если /etc/hosts не читается)
 DNSMASQ_CONF="/etc/dnsmasq.d/atlanta.conf"
