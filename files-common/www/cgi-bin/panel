@@ -77,6 +77,27 @@ panel_version(){
   printf "%s" "${_pv:-$PANEL_VERSION}"
 }
 
+# ── Как называется модель для клиента ───────────────────────────
+# Имя платы из /tmp/sysinfo клиенту показывать нельзя: «cudy,tr3000-v1»
+# или «Zbtlink 3000M(WiFi6) ZBT-Z8103AX-C/D» ему ничего не говорит и
+# рекламирует чужого производителя. Та же таблица стоит в боте
+# (core/texts.py, ROUTER_MODEL_TITLES) — названия обязаны совпадать,
+# иначе в приложении роутер называется одним, а в панели другим.
+#
+# Порядок важен: сначала tr3000, потом wr3000 и zbt. Ищется первое
+# совпадение.
+#
+# Пусто, если модель незнакома. Показать имя платы хуже, чем не
+# показать ничего: настоящую модель видно в парке и в карточке
+# устройства, там она и нужна.
+model_title(){
+  _mt="$( (cat /tmp/sysinfo/board_name 2>/dev/null; cat /tmp/sysinfo/model 2>/dev/null) | tr 'A-Z' 'a-z' )"
+  case "$_mt" in
+    *tr3000*)         printf 'Роутер Pro' ;;
+    *wr3000*|*zbt*)   printf 'Роутер Basic' ;;
+  esac
+}
+
 # ── Обновление прошивки ─────────────────────────────────────────
 ota_build(){
   _ota_b="$(cat "$OTA_VERSION" 2>/dev/null | tr -dc '0-9' || true)"
@@ -1112,7 +1133,7 @@ if [ "$need_auth" = "1" ]; then
   ES_ERR="$(he "${ERR:-}")"
   ES_MSG="$(he "${MSG:-}")"
   ES_MAC="$(he "$MAC")"
-  LOGIN_MODEL="Router Standart"
+  LOGIN_MODEL="$(model_title)"
   ES_LOGIN_MODEL="$(he "$LOGIN_MODEL")"
   ES_PANEL_VER="$(panel_version | html_escape)"
   cat <<HTML
@@ -1122,7 +1143,7 @@ if [ "$need_auth" = "1" ]; then
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Titan Router — Вход</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
 /* ── Оформление входа ──────────────────────────────────────────
    Та же система, что и в панели и в мини-аппе Titan: поверхности
@@ -1581,7 +1602,7 @@ case "${FORM_action:-}" in
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Перезагрузка — Titan Router</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
 /* Экран ожидания. Шрифт объявляем, хотя роутер в этот момент уже
    уходит в перезагрузку и за файлом сходить не успеет: клиент
@@ -2029,9 +2050,9 @@ REBOOTPAGE
 esac
 
 # ─── Данные для страницы ────────────────────────────────────────
-MODEL="$(cat /tmp/sysinfo/model 2>/dev/null || true)"
-HOST="$(uci -q get system.@system[0].hostname 2>/dev/null || hostname 2>/dev/null || echo OpenWrt)"
-ROUTER_NAME="${MODEL:-$HOST}"
+# MODEL, HOST и ROUTER_NAME убраны вместе с показом имени платы:
+# в шапке теперь model_title, а имя хоста под маркой выглядело бы
+# опечаткой — «OpenWrt» клиенту знать незачем.
 LOAD="$(cut -d' ' -f1 /proc/loadavg 2>/dev/null || echo 0.00)"
 MEM_T="$(free -m 2>/dev/null | awk '/Mem:/{print $2}' || echo 0)"
 MEM_U="$(free -m 2>/dev/null | awk '/Mem:/{print $3}' || echo 0)"
@@ -2215,7 +2236,9 @@ case "$PW_OPTIONS" in
     ;;
 esac
 
-ES_NAME="$(he "$ROUTER_NAME")"
+# В шапке — то же название, что видит клиент в боте. Имя хоста
+# сюда не подставляем: «OpenWrt» под маркой выглядит опечаткой.
+ES_NAME="$(he "$(model_title)")"
 ES_MSG="$(he "${MSG:-}")"
 ES_ERR="$(he "${ERR:-}")"
 ES_WAN="$(he "$CUR_WAN")"
@@ -2255,7 +2278,7 @@ cat <<HTML
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Titan Router</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" href="/logo.png">
 <style>
 /* ══ Оформление ══════════════════════════════════════════════
    Взято из мини-аппа Titan (api/static/miniapp/app.css): те же
