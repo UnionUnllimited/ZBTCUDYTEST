@@ -591,12 +591,22 @@ for job in \
   "3-59/5 * * * * /usr/bin/frpc_watchdog.sh" \
   "30 4 * * * /usr/bin/titan_ota.sh" \
   "* * * * * /usr/bin/titan_pw_check.sh" \
-  "* * * * * /usr/bin/titan_loadwatch.sh"
+  "* * * * * /usr/bin/titan_loadwatch.sh" \
+  "* * * * * /usr/bin/titan_faultwatch.sh"
 do
   bin="${job##* }"
   [ -x "$bin" ] || continue
   grep -qF "$bin" /etc/crontabs/root 2>/dev/null || echo "$job" >> /etc/crontabs/root
 done
+
+# Мёртвая строка: trace_boot.sh в прошивке нет, а крон звал его каждую
+# минуту и каждую минуту писал в журнал «not found». Убираем у тех, кому
+# она досталась: /etc/crontabs переживает sysupgrade, само оно не уйдёт.
+if grep -q 'trace_boot.sh' /etc/crontabs/root 2>/dev/null; then
+  grep -v 'trace_boot.sh' /etc/crontabs/root > /tmp/atl_cron_tb 2>/dev/null \
+    && mv /tmp/atl_cron_tb /etc/crontabs/root
+  ok "Cron: убрана строка несуществующего trace_boot.sh"
+fi
 /etc/init.d/cron restart >/dev/null 2>&1 || true
 ok "Cron: watchdog'и разведены по минутам, ловушка нагрузки включена"
 
