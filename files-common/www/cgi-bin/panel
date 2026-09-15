@@ -1166,30 +1166,34 @@ if [ "$need_auth" = "1" ]; then
 
 /* ── Переменные ── */
 :root{
-  --bg:#0a0f18;--card:#121a28;--s2:#172131;--s3:#1e2a3d;
-  --txt:#f0f4fa;--mut:#9aabc4;--dim:#6b7d96;
-  --b1:rgba(255,255,255,.08);--b2:rgba(255,255,255,.16);
-  --acc:#3b93ff;--acc2:#22d3ee;--acc3:#2f7fe0;
-  --acc-dim:rgba(59,147,255,.14);
-  --grad:linear-gradient(135deg,#3b93ff,#22d3ee);
-  --ok:#34d399;--ok-dim:rgba(52,211,153,.13);
-  --bad:#fb7185;--bad-dim:rgba(251,113,133,.13);
-  --edge:inset 0 0 0 1px rgba(255,255,255,.035);
-  --shadow:0 24px 64px rgba(0,0,0,.5);
-  --shadow-lg:0 32px 80px rgba(0,0,0,.55);
+  /* Палитра «металл», та же что в панели и в мини-аппе. --acc это
+     заливка под белым текстом, --acc-on — акцент как цвет текста. */
+  --bg:#0E1116;--card:#1C2128;--s2:#252B34;--s3:#2E353F;
+  --txt:#E4E8ED;--mut:#A8B0BA;--dim:#828895;
+  --b1:rgba(228,232,237,.08);--b2:rgba(228,232,237,.16);
+  --acc:#2E6BD6;--acc-on:#5888DB;--acc2:#3FB6D9;--acc3:#7B5CD6;
+  --acc-dim:rgba(46,107,214,.18);
+  --on-acc:#FFFFFF;
+  --grad:linear-gradient(102deg,#2E6BD6 0%,#3663D7 58%,#5A5DD6 100%);
+  --ok:#3DD6A0;--ok-dim:rgba(61,214,160,.13);
+  --bad:#E4697F;--bad-dim:rgba(228,105,127,.14);
+  --edge:inset 0 0 0 1px rgba(228,232,237,.04);
+  --shadow:0 24px 64px rgba(0,0,0,.45);
+  --shadow-lg:0 32px 80px rgba(0,0,0,.5);
 }
 [data-theme="light"]{
-  --bg:#eef2f8;--card:#ffffff;--s2:#f3f6fb;--s3:#e7ecf5;
-  --txt:#0f1929;--mut:#53627a;--dim:#8494ab;
-  --b1:rgba(15,23,42,.08);--b2:rgba(15,23,42,.14);
-  --acc:#1f6fe0;--acc2:#0e9fbd;--acc3:#1a5fc4;
-  --acc-dim:rgba(31,111,224,.1);
-  --grad:linear-gradient(135deg,#1f6fe0,#0e9fbd);
-  --ok:#0f9d63;--ok-dim:rgba(15,157,99,.11);
-  --bad:#d94a5e;--bad-dim:rgba(217,74,94,.1);
-  --edge:0 1px 2px rgba(15,23,42,.05);
-  --shadow:0 8px 32px rgba(15,23,42,.1);
-  --shadow-lg:0 24px 64px rgba(15,23,42,.14);
+  --bg:#EEF1F5;--card:#FFFFFF;--s2:#F4F6F9;--s3:#E7EBF0;
+  --txt:#12161C;--mut:#4E5763;--dim:#78808C;
+  --b1:rgba(14,17,22,.08);--b2:rgba(14,17,22,.14);
+  --acc:#2E6BD6;--acc-on:#1F56B4;--acc2:#2A93B0;--acc3:#6246B8;
+  --acc-dim:rgba(46,107,214,.10);
+  --on-acc:#FFFFFF;
+  --grad:linear-gradient(102deg,#2E6BD6 0%,#3663D7 58%,#5A5DD6 100%);
+  --ok:#128A62;--ok-dim:rgba(18,138,98,.11);
+  --bad:#C0435A;--bad-dim:rgba(192,67,90,.10);
+  --edge:0 1px 2px rgba(14,17,22,.06);
+  --shadow:0 8px 32px rgba(14,17,22,.1);
+  --shadow-lg:0 24px 64px rgba(14,17,22,.14);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%}
@@ -1205,9 +1209,9 @@ body{
    не более того. Прежние два пятна по углам читались как приём. */
 body::before{
   content:'';position:fixed;inset:0 0 auto 0;height:280px;z-index:0;pointer-events:none;
-  background:radial-gradient(100% 100% at 50% 0%,rgba(59,147,255,.12),transparent 68%);
+  background:radial-gradient(100% 100% at 50% 0%,rgba(46,107,214,.14),transparent 68%);
 }
-[data-theme="light"] body::before{background:radial-gradient(100% 100% at 50% 0%,rgba(31,111,224,.1),transparent 68%)}
+[data-theme="light"] body::before{background:radial-gradient(100% 100% at 50% 0%,rgba(46,107,214,.1),transparent 68%)}
 .login-wrap{position:relative;z-index:1;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center}
 
 /* ── Знак ── */
@@ -1263,7 +1267,7 @@ body::before{
 .pw-w input{margin-bottom:0;padding-right:52px;width:100%}
 .pw-btn{
   position:absolute;right:12px;background:none;border:none;
-  color:var(--acc);cursor:pointer;font:inherit;font-size:13px;font-weight:600;
+  color:var(--acc-on);cursor:pointer;font:inherit;font-size:13px;font-weight:600;
   padding:4px;touch-action:manipulation;transition:opacity .15s;
 }
 .pw-btn:hover{opacity:.75}
@@ -1276,7 +1280,7 @@ input{
   font-size:16px;font-family:inherit;
   transition:border-color .15s,background .15s;outline:none;margin-bottom:14px;
 }
-input:focus{border-color:var(--acc);background:var(--s3)}
+input:focus{border-color:var(--acc-on);background:var(--s3)}
 input::placeholder{color:var(--dim)}
 
 /* ── Кнопка входа ── */
@@ -1285,11 +1289,10 @@ input::placeholder{color:var(--dim)}
 .btn-login{
   width:100%;border:0;border-radius:13px;padding:15px;
   font-family:inherit;font-size:16px;font-weight:650;line-height:1;cursor:pointer;min-height:52px;
-  background:var(--grad);color:#04121f;margin-top:4px;margin-bottom:16px;
-  box-shadow:0 10px 26px -16px rgba(59,147,255,.95);
+  background:var(--grad);color:var(--on-acc);margin-top:4px;margin-bottom:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 10px 26px -16px rgba(46,107,214,.9);
   transition:transform .1s ease,opacity .12s ease;touch-action:manipulation;
 }
-[data-theme="light"] .btn-login{color:#fff;box-shadow:0 10px 26px -16px rgba(31,111,224,.95)}
 .btn-login:hover{opacity:.92}
 .btn-login:active{transform:scale(.985)}
 
@@ -1300,14 +1303,14 @@ input::placeholder{color:var(--dim)}
 .btn-s{
   flex:1;border:0;border-radius:13px;padding:12px;
   font-family:inherit;font-size:14px;font-weight:600;
-  background:var(--acc-dim);color:var(--acc);
+  background:var(--acc-dim);color:var(--acc-on);
   cursor:pointer;text-align:center;text-decoration:none;
   display:flex;align-items:center;justify-content:center;gap:7px;
   transition:background .15s,transform .1s;min-height:46px;
 }
-.btn-s:hover{background:rgba(59,147,255,.22)}
+.btn-s:hover{background:rgba(46,107,214,.28)}
 .btn-s:active{transform:scale(.985)}
-[data-theme="light"] .btn-s:hover{background:rgba(31,111,224,.18)}
+[data-theme="light"] .btn-s:hover{background:rgba(46,107,214,.16)}
 
 /* ── Подсказка ── */
 .hint{
@@ -1376,8 +1379,8 @@ function wizSetTheme(t){
   applyTheme(t);
   try{localStorage.setItem('atlTheme',t);}catch(e){}
   var bl=document.getElementById('wizThemeLight'),bd=document.getElementById('wizThemeDark');
-  if(bl) bl.style.borderColor=t==='light'?'var(--acc)':'var(--b2)';
-  if(bd) bd.style.borderColor=t==='dark'?'var(--acc)':'var(--b2)';
+  if(bl) bl.style.borderColor=t==='light'?'var(--acc-on)':'var(--b2)';
+  if(bd) bd.style.borderColor=t==='dark'?'var(--acc-on)':'var(--b2)';
 }
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t||'dark');var b=document.getElementById('themeBtn');if(b)b.textContent=(t==='dark')?'Светлая':'Тёмная';}
 function toggleTheme(){var c=document.documentElement.getAttribute('data-theme')||'dark';var n=c==='light'?'dark':'light';applyTheme(n);try{localStorage.setItem('atlTheme',n);}catch(e){}}
@@ -1626,25 +1629,25 @@ case "${FORM_action:-}" in
 body{
   min-height:100vh;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
-  color:#f0f4fa;
+  color:#E4E8ED;
   font:15px/1.5 'Rubik',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
   text-align:center;padding:24px;
-  background:radial-gradient(100% 100% at 50% 0%,rgba(59,147,255,.12),transparent 68%),#0a0f18;
+  background:radial-gradient(100% 100% at 50% 0%,rgba(46,107,214,.14),transparent 68%),#0E1116;
 }
 .icon{font-size:56px;margin-bottom:20px;animation:spin 2s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 h1{font-size:21px;font-weight:700;letter-spacing:-.45px;margin-bottom:8px}
-.sub{color:#9aabc4;font-size:14px;margin-bottom:30px}
+.sub{color:#A8B0BA;font-size:14px;margin-bottom:30px}
 /* Число крупное и плоское: градиент на нём спорил с полосой
    ниже, и оба тянули внимание на себя. */
 .countdown{
   font-size:52px;font-weight:700;letter-spacing:-1.8px;line-height:1;
-  color:#f0f4fa;min-width:80px;display:inline-block;
+  color:#E4E8ED;min-width:80px;display:inline-block;
 }
-.bar-wrap{width:min(320px,90vw);height:6px;background:#1e2a3d;border-radius:999px;margin:22px auto 0;overflow:hidden}
-.bar{height:100%;background:#3b93ff;border-radius:999px;width:100%;transform-origin:left;transition:transform .5s linear}
-.status{margin-top:24px;font-size:13px;color:#6b7d96;min-height:20px}
+.bar-wrap{width:min(320px,90vw);height:6px;background:#2E353F;border-radius:999px;margin:22px auto 0;overflow:hidden}
+.bar{height:100%;background:#2E6BD6;border-radius:999px;width:100%;transform-origin:left;transition:transform .5s linear}
+.status{margin-top:24px;font-size:13px;color:#828895;min-height:20px}
 @media (prefers-reduced-motion: reduce){.icon{animation:none}}
 </style>
 </head>
@@ -2324,25 +2327,29 @@ cat <<HTML
 
 /* ══ Переменные ═══════════════════════════════════════════════ */
 :root{
-  /* Уровни поверхности, от дальнего к ближнему. */
-  --bg:#0a0f18;
-  --s1:#121a28;--s2:#172131;--s3:#1e2a3d;
-  --b1:rgba(255,255,255,.08);--b2:rgba(255,255,255,.16);
-  --txt:#f0f4fa;--mut:#9aabc4;--dim:#6b7d96;
-  --acc:#3b93ff;--acc2:#22d3ee;--acc3:#2f7fe0;
-  --acc-dim:rgba(59,147,255,.14);
-  --grad:linear-gradient(135deg,#3b93ff,#22d3ee);
-  --ok:#34d399;--ok-dim:rgba(52,211,153,.13);
-  --warn:#fbbf24;--warn-dim:rgba(251,191,36,.13);
-  --bad:#fb7185;--bad-dim:rgba(251,113,133,.13);
-  /* Радиусы крупнее прежних: 16/10/6 против 18/13/10. Мелкий
-     радиус на крупной карточке читается срезанным углом. */
+  /* Палитра «металл», взята из мини-аппа Titan. Названия оттуда же:
+     Void, Graphite, Gunmetal, Brushed, Silver, Titanium. */
+  --bg:#0E1116;
+  --s1:#1C2128;--s2:#252B34;--s3:#2E353F;
+  --b1:rgba(228,232,237,.08);--b2:rgba(228,232,237,.16);
+  --txt:#E4E8ED;--mut:#A8B0BA;--dim:#828895;
+  /* Акцент разделён надвое, и путать их нельзя.
+     --acc это ЗАЛИВКА, поверх неё текст белый (--on-acc).
+     --acc-on это сам акцент как ЦВЕТ ТЕКСТА, значков и рамок: он
+     светлее, потому что тёмно-синяя надпись на тёмном фоне не
+     читается. */
+  --acc:#2E6BD6;--acc-on:#5888DB;--acc2:#3FB6D9;--acc3:#7B5CD6;
+  --acc-dim:rgba(46,107,214,.18);
+  --on-acc:#FFFFFF;
+  /* Побежалость, а не радуга: синий держит две трети ширины,
+     фиолетовый только угадывается к дальнему краю. */
+  --grad:linear-gradient(102deg,#2E6BD6 0%,#3663D7 58%,#5A5DD6 100%);
+  --ok:#3DD6A0;--ok-dim:rgba(61,214,160,.13);
+  --warn:#E0A83C;--warn-dim:rgba(224,168,60,.14);
+  --bad:#E4697F;--bad-dim:rgba(228,105,127,.14);
   --r:18px;--rs:13px;--rx:10px;
   --pad:16px;
-  /* Волосяная обводка изнутри. На OLED карточка на почти чёрном
-     без неё теряет край, а тон уровней слишком близок, чтобы
-     держать его одному. */
-  --edge:inset 0 0 0 1px rgba(255,255,255,.035);
+  --edge:inset 0 0 0 1px rgba(228,232,237,.04);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 html{height:100%;-webkit-text-size-adjust:100%}
@@ -2359,11 +2366,11 @@ body{
    ни верха, ни низа. */
 body::before{
   content:'';position:fixed;inset:0 0 auto 0;height:240px;pointer-events:none;z-index:0;
-  background:radial-gradient(100% 100% at 50% 0%,rgba(59,147,255,.1),transparent 68%);
+  background:radial-gradient(100% 100% at 50% 0%,rgba(46,107,214,.12),transparent 68%);
 }
 a{color:inherit;text-decoration:none}
 ::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+::-webkit-scrollbar-thumb{background:rgba(228,232,237,.12);border-radius:99px}
 .wrap{position:relative;z-index:1;width:min(1640px,calc(100vw - 32px));margin:0 auto;padding:10px 0 48px}
 .panel-footer{color:var(--dim);font-size:12px;font-weight:600;text-align:center;padding-top:22px}
 
@@ -2378,7 +2385,7 @@ a{color:inherit;text-decoration:none}
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
   margin-bottom:12px;position:sticky;top:10px;z-index:150;padding:9px 14px;
   border-radius:var(--r);
-  background:rgba(18,26,40,.82);box-shadow:var(--edge);
+  background:rgba(28,33,40,.84);box-shadow:var(--edge);
   -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
 }
 .header .meta-chips{justify-self:center}
@@ -2419,7 +2426,7 @@ a{color:inherit;text-decoration:none}
 .sval{font-size:11px;font-weight:700;white-space:nowrap}
 
 /* ══ Боковое меню ═════════════════════════════════════════════ */
-#navOverlay{display:none;position:fixed;inset:0;z-index:298;background:rgba(4,8,14,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+#navOverlay{display:none;position:fixed;inset:0;z-index:298;background:rgba(14,17,22,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 #navOverlay.on{display:block}
 /* Выезжает справа: бургер стоит справа, и панель, вылетающая с
    противоположной стороны, читается как чужая — палец идёт к
@@ -2427,7 +2434,7 @@ a{color:inherit;text-decoration:none}
 .nav{
   display:flex;flex-direction:column;flex-wrap:nowrap;
   position:fixed;right:0;top:0;bottom:0;width:280px;z-index:299;
-  background:var(--s1);border-left:0;box-shadow:-8px 0 48px rgba(0,0,0,.6),var(--edge);
+  background:var(--s1);border-left:0;box-shadow:-8px 0 48px rgba(0,0,0,.55),var(--edge);
   transform:translateX(100%);transition:transform .26s cubic-bezier(.4,0,.2,1);
   overflow-y:auto;overflow-x:hidden;
 }
@@ -2456,23 +2463,23 @@ a{color:inherit;text-decoration:none}
   text-align:left;
 }
 .nav a .grow,.nav button .grow{text-align:left}
-.nav a:hover,.nav button:hover{background:rgba(255,255,255,.05)}
-.nav a:active,.nav button:active{background:rgba(255,255,255,.08)}
+.nav a:hover,.nav button:hover{background:rgba(228,232,237,.05)}
+.nav a:active,.nav button:active{background:rgba(228,232,237,.08)}
 .nav a.primary,.nav button.primary{
-  background:var(--grad);color:#04121f;font-weight:650;
-  box-shadow:0 8px 22px -14px rgba(59,147,255,.9);
+  background:var(--grad);color:var(--on-acc);font-weight:650;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 8px 22px -14px rgba(46,107,214,.85);
 }
 .nav a.primary:hover,.nav button.primary:hover{opacity:.92}
-.nav-sep{height:1px;background:rgba(255,255,255,.08);margin:8px 4px}
+.nav-sep{height:1px;background:rgba(228,232,237,.08);margin:8px 4px}
 /* Тональная строка меню: тот же акцент, но заливкой. */
-.nav a.accent,.nav button.accent{background:var(--acc-dim);color:var(--acc)}
-.nav a.accent .ic,.nav button.accent .ic{color:var(--acc)}
-.nav a.accent:hover,.nav button.accent:hover{background:rgba(59,147,255,.22)}
+.nav a.accent,.nav button.accent{background:var(--acc-dim);color:var(--acc-on)}
+.nav a.accent .ic,.nav button.accent .ic{color:var(--acc-on)}
+.nav a.accent:hover,.nav button.accent:hover{background:rgba(46,107,214,.28)}
 /* Заголовок группы — как в настройках телефона: мелкий,
    приглушённый, капителью с разрядкой. */
 .nav-section-label{font-size:11.5px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;padding:10px 14px 4px}
-.nav-home-btn{background:var(--acc-dim) !important;border:0 !important;font-weight:650 !important;color:var(--acc) !important;border-radius:var(--rs) !important}
-.nav-home-btn:hover{background:rgba(59,147,255,.22) !important}
+.nav-home-btn{background:var(--acc-dim) !important;border:0 !important;font-weight:650 !important;color:var(--acc-on) !important;border-radius:var(--rs) !important}
+.nav-home-btn:hover{background:rgba(46,107,214,.28) !important}
 .nav-theme-btn{color:var(--dim) !important;font-size:13px !important;font-weight:600 !important}
 
 /* ══ Сообщения ════════════════════════════════════════════════ */
@@ -2499,7 +2506,7 @@ a{color:inherit;text-decoration:none}
 .info-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;position:relative;font-size:14px}
 /* Разделитель отступлен до текста: так группа читается одним
    блоком, а не списком без начала и конца. */
-.info-row + .info-row::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,255,255,.08)}
+.info-row + .info-row::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(228,232,237,.08)}
 .info-row:last-child{padding-bottom:0}
 .info-row:first-child{padding-top:0}
 .ir-label{color:var(--mut);font-weight:400;white-space:nowrap;font-size:14px}
@@ -2509,7 +2516,7 @@ a{color:inherit;text-decoration:none}
 .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;border:0;white-space:nowrap}
 .badge-ok{background:var(--ok-dim);color:var(--ok)}
 .badge-bad{background:var(--bad-dim);color:var(--bad)}
-.badge-blue{background:var(--acc-dim);color:var(--acc)}
+.badge-blue{background:var(--acc-dim);color:var(--acc-on)}
 .badge-warn{background:var(--warn-dim);color:var(--warn)}
 .info-hint{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:var(--rs);background:var(--s2);border:0;color:var(--mut);font-size:13px;line-height:1.5;margin:0 0 12px}
 .info-hint.warn{background:var(--warn-dim);color:var(--warn)}
@@ -2536,7 +2543,7 @@ select{
   background-position:calc(100% - 16px) calc(50% - 2px),calc(100% - 12px) calc(50% - 2px);
   background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px;font-weight:500;cursor:pointer;
 }
-input:focus,select:focus{border-color:var(--acc);background:var(--s3);box-shadow:none}
+input:focus,select:focus{border-color:var(--acc-on);background:var(--s3);box-shadow:none}
 option{background:#172131;color:var(--txt);font-weight:500}
 input::placeholder{color:var(--dim)}
 .pw-wrap{position:relative;display:flex;align-items:center}
@@ -2562,25 +2569,29 @@ input::placeholder{color:var(--dim)}
 .btn[disabled]{opacity:.4;pointer-events:none}
 /* Главная — единственный градиент на экране. Тёмный текст, а не
    белый: на светло-синем белый даёт меньше контраста, чем кажется. */
-.btn.primary{background:var(--grad);color:#04121f;box-shadow:0 8px 22px -14px rgba(59,147,255,.9)}
+/* Светлая кромка сверху и тень снизу — так анодированная деталь
+   ловит свет. Кромка внутренняя и в одну точку: больше — и это
+   уже не металл, а стеклянная кнопка из двухтысячных. */
+.btn.primary{background:var(--grad);color:var(--on-acc);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),0 8px 22px -14px rgba(46,107,214,.85)}
 .btn.primary:hover{opacity:.92}
 /* Второстепенная — тональная, как filled tonal в Material: тот же
    акцент, но заливкой. Обводка тут лишняя, она делала кнопку
    похожей на поле ввода. */
-.btn.secondary{background:var(--acc-dim);color:var(--acc);box-shadow:none}
-.btn.secondary:hover{background:rgba(59,147,255,.22)}
+.btn.secondary{background:var(--acc-dim);color:var(--acc-on);box-shadow:none}
+.btn.secondary:hover{background:rgba(46,107,214,.28)}
 .btn.danger{background:var(--bad-dim);color:var(--bad);box-shadow:none}
-.btn.danger:hover{background:rgba(251,113,133,.22)}
+.btn.danger:hover{background:rgba(228,105,127,.24)}
 .hint{color:var(--mut);padding:11px 13px;border-radius:var(--rs);border:0;background:var(--s2);font-size:13px;line-height:1.5;text-align:left}
 
 /* ══ Отладка ══════════════════════════════════════════════════ */
-.debug-section{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
+.debug-section{margin-top:14px;padding-top:12px;border-top:1px solid rgba(228,232,237,.08)}
 .debug-title{font-size:11.5px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;text-align:left}
 .debug-body{display:block;margin-top:0}
 .drow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;position:relative;font-size:13px}
-.drow + .drow::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,255,255,.06)}
+.drow + .drow::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:rgba(228,232,237,.06)}
 .drow-k{color:var(--dim)}
-.drow-v{font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--acc);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.drow-v{font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--acc-on);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
 .copywrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .copyid{font-weight:600;font-size:14px}
 .copybtn{border:0;background:var(--s3);color:var(--mut);border-radius:var(--rx);padding:5px 10px;cursor:pointer;min-height:30px;font:inherit;font-size:12px;font-weight:600;transition:background .12s,color .12s;touch-action:manipulation}
@@ -2592,19 +2603,19 @@ input::placeholder{color:var(--dim)}
 /* ══ Расширенные настройки ════════════════════════════════════ */
 .adv-wrap{background:var(--s1);border:0;border-radius:var(--r);margin-bottom:12px;overflow:hidden;box-shadow:var(--edge)}
 .adv-hdr{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:background .12s}
-.adv-hdr:hover{background:rgba(255,255,255,.04)}
+.adv-hdr:hover{background:rgba(228,232,237,.04)}
 .adv-hdr-left{display:flex;align-items:center;gap:14px}
 /* Значок в тональной плашке, а не голой эмодзи посреди строки. */
 .adv-icon{
   width:36px;height:36px;border-radius:10px;flex:0 0 36px;font-size:19px;
   display:flex;align-items:center;justify-content:center;
-  color:var(--acc);background:var(--acc-dim);
+  color:var(--acc-on);background:var(--acc-dim);
 }
 .adv-title{font-size:16px;font-weight:650;letter-spacing:-.25px}
 .adv-sub{font-size:13px;color:var(--dim);margin-top:2px}
-.adv-arr{font-size:18px;color:var(--dim);transition:transform .25s;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.05);border-radius:50%;flex-shrink:0}
+.adv-arr{font-size:18px;color:var(--dim);transition:transform .25s;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:rgba(228,232,237,.05);border-radius:50%;flex-shrink:0}
 .adv-wrap.open .adv-arr{transform:rotate(180deg)}
-.adv-body{display:none;border-top:1px solid rgba(255,255,255,.08)}
+.adv-body{display:none;border-top:1px solid rgba(228,232,237,.08)}
 .adv-wrap.open .adv-body{display:block;animation:fadeUp .2s ease both}
 .adv-inner{padding:var(--pad);display:flex;flex-direction:column;gap:10px}
 
@@ -2617,7 +2628,7 @@ input::placeholder{color:var(--dim)}
   transition:background .12s,color .12s;
 }
 #burgerBtn:active{transform:scale(.95)}
-#burgerBtn.is-open{background:var(--acc-dim);color:var(--acc);box-shadow:none}
+#burgerBtn.is-open{background:var(--acc-dim);color:var(--acc-on);box-shadow:none}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* ══ Узкий экран ══════════════════════════════════════════════ */
@@ -2645,25 +2656,28 @@ input::placeholder{color:var(--dim)}
    типографика, только уровни поверхности перевёрнуты.
    ═══════════════════════════════════════════════════════════ */
 [data-theme="light"]{
-  --bg:#eef2f8;
-  --s1:#ffffff;--s2:#f3f6fb;--s3:#e7ecf5;
-  --b1:rgba(15,23,42,.08);--b2:rgba(15,23,42,.14);
-  --txt:#0f1929;--mut:#53627a;--dim:#8494ab;
-  --acc:#1f6fe0;--acc2:#0e9fbd;--acc3:#1a5fc4;
-  --acc-dim:rgba(31,111,224,.1);
-  --grad:linear-gradient(135deg,#1f6fe0,#0e9fbd);
-  --ok:#0f9d63;--ok-dim:rgba(15,157,99,.11);
-  --warn:#b4730a;--warn-dim:rgba(180,115,10,.11);
-  --bad:#d94a5e;--bad-dim:rgba(217,74,94,.1);
-  --edge:0 1px 2px rgba(15,23,42,.05),0 1px 1px rgba(15,23,42,.03);
+  --bg:#EEF1F5;
+  --s1:#FFFFFF;--s2:#F4F6F9;--s3:#E7EBF0;
+  --b1:rgba(14,17,22,.08);--b2:rgba(14,17,22,.14);
+  --txt:#12161C;--mut:#4E5763;--dim:#78808C;
+  /* Заливка остаётся тем же анодным синим — она и в светлой теме
+     под белым текстом. А текстовый акцент темнеет, иначе синяя
+     надпись на белом не дотягивает по контрасту. */
+  --acc:#2E6BD6;--acc-on:#1F56B4;--acc2:#2A93B0;--acc3:#6246B8;
+  --acc-dim:rgba(46,107,214,.10);
+  --on-acc:#FFFFFF;
+  --grad:linear-gradient(102deg,#2E6BD6 0%,#3663D7 58%,#5A5DD6 100%);
+  --ok:#128A62;--ok-dim:rgba(18,138,98,.11);
+  --warn:#9A6B0E;--warn-dim:rgba(154,107,14,.11);
+  --bad:#C0435A;--bad-dim:rgba(192,67,90,.10);
+  --edge:0 1px 2px rgba(14,17,22,.06);
 }
 [data-theme="light"] body::before{
   background:radial-gradient(100% 100% at 50% 0%,rgba(31,111,224,.08),transparent 68%);
 }
-[data-theme="light"] .header{background:rgba(255,255,255,.86)}
-[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(15,23,42,.18)}
+[data-theme="light"] .header{background:rgba(255,255,255,.88)}
+[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(14,17,22,.18)}
 [data-theme="light"] .brand-icon{color:#fff}
-[data-theme="light"] .btn.primary,[data-theme="light"] .nav a.primary,[data-theme="light"] .nav button.primary{color:#fff}
 [data-theme="light"] .btn.primary{box-shadow:0 8px 22px -14px rgba(31,111,224,.9)}
 [data-theme="light"] option{background:#fff;color:var(--txt)}
 [data-theme="light"] select{
@@ -2672,26 +2686,26 @@ input::placeholder{color:var(--dim)}
 [data-theme="light"] .info-row + .info-row::before,
 [data-theme="light"] .nav-header,
 [data-theme="light"] .adv-body,
-[data-theme="light"] .debug-section{border-color:rgba(15,23,42,.08)}
+[data-theme="light"] .debug-section{border-color:rgba(14,17,22,.08)}
 [data-theme="light"] .info-row + .info-row::before,
 [data-theme="light"] .drow + .drow::before,
-[data-theme="light"] .nav-sep{background:rgba(15,23,42,.08)}
+[data-theme="light"] .nav-sep{background:rgba(14,17,22,.08)}
 [data-theme="light"] .nav a:hover,[data-theme="light"] .nav button:hover,
-[data-theme="light"] .adv-hdr:hover{background:rgba(15,23,42,.04)}
-[data-theme="light"] .nav a:active,[data-theme="light"] .nav button:active{background:rgba(15,23,42,.07)}
+[data-theme="light"] .adv-hdr:hover{background:rgba(14,17,22,.04)}
+[data-theme="light"] .nav a:active,[data-theme="light"] .nav button:active{background:rgba(14,17,22,.07)}
 [data-theme="light"] .nav-close{background:var(--s3)}
-[data-theme="light"] .nav-close:hover{background:rgba(15,23,42,.1)}
-[data-theme="light"] .adv-arr{background:rgba(15,23,42,.05)}
+[data-theme="light"] .nav-close:hover{background:rgba(14,17,22,.1)}
+[data-theme="light"] .adv-arr{background:rgba(14,17,22,.05)}
 [data-theme="light"] .si:hover{background:var(--s2)}
-[data-theme="light"] #navOverlay{background:rgba(15,23,42,.4)}
-[data-theme="light"] .nav{box-shadow:-8px 0 40px rgba(15,23,42,.12)}
+[data-theme="light"] #navOverlay{background:rgba(14,17,22,.4)}
+[data-theme="light"] .nav{box-shadow:-8px 0 40px rgba(14,17,22,.12)}
 [data-theme="light"] #atlTitle{color:var(--txt);-webkit-text-fill-color:currentColor}
 [data-theme="light"] .nav-header-title{color:var(--txt);-webkit-text-fill-color:currentColor}
 
 /* ══ Мастер первого запуска ═══════════════════════════════════ */
 #wizOverlay{
   display:none;position:fixed;inset:0;z-index:500;
-  background:rgba(4,8,14,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  background:rgba(14,17,22,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   align-items:center;justify-content:center;padding:16px;
 }
 #wizOverlay.on{display:flex}
@@ -2703,7 +2717,7 @@ input::placeholder{color:var(--dim)}
 .wiz-icon{
   width:62px;height:62px;border-radius:50%;margin:4px auto 0;font-size:28px;
   display:flex;align-items:center;justify-content:center;
-  color:var(--acc);background:var(--acc-dim);
+  color:var(--acc-on);background:var(--acc-dim);
 }
 .wiz-title{font-size:21px;font-weight:700;letter-spacing:-.5px;text-align:center}
 .wiz-desc{font-size:14px;color:var(--mut);text-align:center;line-height:1.5}
@@ -2713,23 +2727,22 @@ input::placeholder{color:var(--dim)}
 .wiz-actions .btn{flex:1;width:100%;padding:14px 18px;font-size:16px;border-radius:var(--rs)}
 /* Пропуск — текстом со ссылочным подчёркиванием: в сплошном
    мелком тексте без него не отличить от подписи. */
-.wiz-skip{background:none;border:none;color:var(--acc);font:inherit;font-size:13px;text-align:center;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:2px}
+.wiz-skip{background:none;border:none;color:var(--acc-on);font:inherit;font-size:13px;text-align:center;cursor:pointer;padding:4px;text-decoration:underline;text-underline-offset:2px}
 .wiz-skip:hover{opacity:.8}
 #wizWanPPP,#wizWanStatic{flex-direction:column;gap:12px}
 .wiz-band-tabs{display:flex;background:var(--s2);border:0;border-radius:var(--rs);padding:4px;gap:4px}
 .wiz-band{flex:1;padding:9px 0;border-radius:var(--rx);border:none;background:transparent;color:var(--mut);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,color .15s}
-.wiz-band.active{background:var(--acc);color:#04121f;box-shadow:none}
-[data-theme="light"] .wiz-band.active{color:#fff}
-[data-theme="light"] #wizOverlay{background:rgba(15,23,42,.5)}
-[data-theme="light"] .wiz-box{box-shadow:0 32px 80px rgba(15,23,42,.18)}
+.wiz-band.active{background:var(--acc);color:var(--on-acc);box-shadow:none}
+[data-theme="light"] #wizOverlay{background:rgba(14,17,22,.5)}
+[data-theme="light"] .wiz-box{box-shadow:0 32px 80px rgba(14,17,22,.18)}
 
 /* ══ Ожидание ═════════════════════════════════════════════════ */
 @keyframes _spin{to{transform:rotate(360deg)}}
-#loadingOverlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(4,8,14,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;flex-direction:column;gap:18px}
+#loadingOverlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(14,17,22,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);align-items:center;justify-content:center;flex-direction:column;gap:18px}
 #loadingOverlay.on{display:flex !important}
-.ld-ring{width:56px;height:56px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--acc);border-radius:50%;animation:_spin .75s linear infinite}
-.ld-text{font-size:17px;font-weight:650;letter-spacing:-.25px;color:#f0f4fa;text-align:center;max-width:280px;line-height:1.45}
-.ld-sub{font-size:13px;color:#9aabc4;text-align:center;max-width:280px;margin-top:-10px}
+.ld-ring{width:56px;height:56px;border:4px solid rgba(255,255,255,.1);border-top-color:var(--acc-on);border-radius:50%;animation:_spin .75s linear infinite}
+.ld-text{font-size:17px;font-weight:650;letter-spacing:-.25px;color:#E4E8ED;text-align:center;max-width:280px;line-height:1.45}
+.ld-sub{font-size:13px;color:#A8B0BA;text-align:center;max-width:280px;margin-top:-10px}
 
 /* Кому движение мешает — тому его нет. Системная настройка, не наша. */
 @media (prefers-reduced-motion: reduce){
@@ -2751,7 +2764,7 @@ input::placeholder{color:var(--dim)}
 .ic-box{
   width:36px;height:36px;border-radius:10px;flex:0 0 36px;
   display:flex;align-items:center;justify-content:center;
-  color:var(--acc);background:var(--acc-dim);
+  color:var(--acc-on);background:var(--acc-dim);
 }
 .ic-box .ic{width:19px;height:19px}
 .ic-box.ok{color:var(--ok);background:var(--ok-dim)}
@@ -2768,10 +2781,10 @@ input::placeholder{color:var(--dim)}
 }
 /* Разделитель начинается от текста, а не от края: так глаз видит,
    где строка кончается содержательно, и группа читается блоком. */
-.item + .item::before{content:'';position:absolute;top:0;left:var(--pad);right:0;height:1px;background:rgba(255,255,255,.08)}
+.item + .item::before{content:'';position:absolute;top:0;left:var(--pad);right:0;height:1px;background:rgba(228,232,237,.08)}
 .list.leading .item + .item::before{left:65px}
 button.item{cursor:pointer;transition:background .12s}
-button.item:active{background:rgba(255,255,255,.05)}
+button.item:active{background:rgba(228,232,237,.05)}
 .item .chev{color:var(--dim);flex:0 0 auto}
 .item b{font-weight:600}
 .grow{flex:1;min-width:0}
@@ -2782,25 +2795,25 @@ button.item:active{background:rgba(255,255,255,.05)}
 .pill.ok{color:var(--ok);background:var(--ok-dim)}
 .pill.warn{color:var(--warn);background:var(--warn-dim)}
 .pill.bad{color:var(--bad);background:var(--bad-dim)}
-.pill.off{color:var(--mut);background:rgba(154,171,196,.12)}
+.pill.off{color:var(--mut);background:rgba(168,176,186,.12)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .pill.ok .dot{animation:lpulse 2.6s ease-in-out infinite}
-[data-theme="light"] .item + .item::before{background:rgba(15,23,42,.08)}
-[data-theme="light"] button.item:active{background:rgba(15,23,42,.05)}
-[data-theme="light"] .pill.off{background:rgba(83,98,122,.12)}
+[data-theme="light"] .item + .item::before{background:rgba(14,17,22,.08)}
+[data-theme="light"] button.item:active{background:rgba(14,17,22,.05)}
+[data-theme="light"] .pill.off{background:rgba(78,87,99,.12)}
 /* Размер значка по месту. Один .ic на 20 пикселей не годится
    везде: в кнопке он спорит с подписью, в заголовке наоборот
    теряется. */
 .btn .ic{width:17px;height:17px}
 .card-title .ic{width:20px;height:20px}
 .acc-title{display:inline-flex;align-items:center;gap:9px}
-.acc-title .ic{width:18px;height:18px;color:var(--acc)}
+.acc-title .ic{width:18px;height:18px;color:var(--acc-on)}
 .acc-arrow .ic,.adv-arr .ic{width:18px;height:18px}
 .acc-arrow{display:inline-flex}
 .adv-icon .ic{width:19px;height:19px}
 .nav a .ic,.nav button .ic{width:19px;height:19px;color:var(--mut)}
 .nav a.primary .ic,.nav button.primary .ic{color:inherit}
-.nav-home-btn .ic{color:var(--acc) !important}
+.nav-home-btn .ic{color:var(--acc-on) !important}
 .pw-eye{display:flex;align-items:center}
 .pw-eye .ic{width:19px;height:19px}
 .copybtn{display:inline-flex;align-items:center;justify-content:center}
@@ -2819,7 +2832,7 @@ button.item:active{background:rgba(255,255,255,.05)}
 .wiz-icon .ic{width:28px;height:28px}
 /* Значок на экране перезагрузки крутится сам — размер задаём тут,
    в разметке у него только класс. */
-.icon .ic{width:56px;height:56px;color:var(--acc)}
+.icon .ic{width:56px;height:56px;color:var(--acc-on)}
 </style>
 </head>
 <body>
@@ -2886,7 +2899,7 @@ button.item:active{background:rgba(255,255,255,.05)}
       <div class="wiz-actions">
         <button class="btn primary" type="button" onclick="wizNext()">Начать настройку<svg class="ic"><use href="#i-chev-r"/></svg></button>
       </div>
-      <a href="/instruction/" style="display:block;margin-top:8px;font-size:12px;color:var(--acc);text-align:center;text-decoration:underline">Прочитать инструкцию перед началом</a>
+      <a href="/instruction/" style="display:block;margin-top:8px;font-size:12px;color:var(--acc-on);text-align:center;text-decoration:underline">Прочитать инструкцию перед началом</a>
       <button class="wiz-skip" type="button" onclick="wizFinish(true)">Пропустить, настрою позже</button>
     </div>
 
@@ -2904,7 +2917,7 @@ button.item:active{background:rgba(255,255,255,.05)}
         <div class="wiz-field">
           <label>Имя сети 2.4 ГГц (SSID)</label>
           <div style="display:flex;align-items:center;gap:0">
-            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
+            <span style="background:var(--s3);border:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 12px;font-size:13px;font-weight:600;color:var(--acc-on);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
             <input class="inp" id="wizSsid" type="text" placeholder="MyHome" autocomplete="off" spellcheck="false" style="border-radius:0 8px 8px 0;flex:1;margin:0">
           </div>
         </div>
@@ -2921,7 +2934,7 @@ button.item:active{background:rgba(255,255,255,.05)}
         <div class="wiz-field">
           <label>Имя сети 5 ГГц (SSID)</label>
           <div style="display:flex;align-items:center;gap:0">
-            <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:8px 0 0 8px;padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
+            <span style="background:var(--s3);border:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 12px;font-size:13px;font-weight:600;color:var(--acc-on);white-space:nowrap;min-height:40px;display:flex;align-items:center;flex-shrink:0">Titan-</span>
             <input class="inp" id="wizSsid5" type="text" placeholder="MyHome-5G" autocomplete="off" spellcheck="false" style="border-radius:0 8px 8px 0;flex:1;margin:0">
           </div>
         </div>
@@ -3105,8 +3118,8 @@ button.item:active{background:rgba(255,255,255,.05)}
   .acc{background:var(--s2);border:0;border-radius:var(--rs);margin-bottom:10px;overflow:hidden;transition:background .12s}
   .acc:hover{background:var(--s3)}
   .acc-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:background .12s}
-  .acc-hdr:hover{background:rgba(255,255,255,.04)}
-  .acc-hdr.open{border-bottom:1px solid rgba(255,255,255,.08)}
+  .acc-hdr:hover{background:rgba(228,232,237,.04)}
+  .acc-hdr.open{border-bottom:1px solid rgba(228,232,237,.08)}
   .acc-title{font-size:15px;font-weight:600;letter-spacing:-.2px;color:var(--txt)}
   .acc-arrow{font-size:16px;color:var(--dim);transition:transform .2s;display:inline-block}
   .acc-hdr.open .acc-arrow{transform:rotate(180deg)}
@@ -3114,8 +3127,8 @@ button.item:active{background:rgba(255,255,255,.05)}
   .acc-inner{padding:14px 16px}
   .acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:860px){.acc-grid{grid-template-columns:1fr}}
-  [data-theme="light"] .acc-hdr:hover{background:rgba(15,23,42,.04)}
-  [data-theme="light"] .acc-hdr.open{border-bottom-color:rgba(15,23,42,.08)}
+  [data-theme="light"] .acc-hdr:hover{background:rgba(14,17,22,.04)}
+  [data-theme="light"] .acc-hdr.open{border-bottom-color:rgba(14,17,22,.08)}
   </style>
 
   <!-- ── Верх: WAN + WiFi (главная страница) ── -->
@@ -3194,7 +3207,7 @@ button.item:active{background:rgba(255,255,255,.05)}
             <div class="card-title"><span class="ic-box"><svg class="ic"><use href="#i-wifi"/></svg></span>Настройки Wi-Fi</div>
             <label>Название сети 2.4 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
-              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
+              <span style="background:var(--s3);border:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 12px;font-size:13px;font-weight:600;color:var(--acc-on);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
               <input id="ssid_24_suffix" style="border-radius:0 var(--rs) var(--rs) 0" placeholder="Название (напр: Home)" oninput="updateSsid24()">
               <input id="ssid_24" type="hidden" value="${ES_24_SSID}">
             </div>
@@ -3205,7 +3218,7 @@ button.item:active{background:rgba(255,255,255,.05)}
             </div>
             <label>Название сети 5 ГГц</label>
             <div style="display:flex;align-items:center;gap:0">
-              <span style="background:var(--s3);border:1px solid var(--b1);border-right:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 10px;font-size:13px;font-weight:700;color:var(--acc);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
+              <span style="background:var(--s3);border:0;border-radius:var(--rs) 0 0 var(--rs);padding:9px 12px;font-size:13px;font-weight:600;color:var(--acc-on);white-space:nowrap;min-height:40px;display:flex;align-items:center">Titan-</span>
               <input id="ssid_5_suffix" style="border-radius:0 var(--rs) var(--rs) 0" placeholder="Название (напр: Home_5G)" oninput="updateSsid5()">
               <input id="ssid_5" type="hidden" value="${ES_5_SSID}">
             </div>
@@ -3225,7 +3238,7 @@ button.item:active{background:rgba(255,255,255,.05)}
   <!-- ── VPN и сервер (главный экран) ── -->
   <div class="card" style="margin-top:4px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:14px;font-weight:700;color:var(--txt)"><svg class="ic"><use href="#i-shield"/></svg>VPN и сервер</span>
+      <span class="card-title" style="margin:0"><span class="ic-box"><svg class="ic"><use href="#i-shield"/></svg></span>VPN и сервер</span>
       <span id="bypass-label-card" class="badge badge-${BYPASS_DOT}">${BYPASS_LABEL}</span>
     </div>
     <div class="info-hint warn" id="bypass-desc"${BYPASS_DESC:+ style="display:flex"}${BYPASS_DESC:- style="display:none"}>${BYPASS_DESC}</div>
@@ -3322,12 +3335,12 @@ button.item:active{background:rgba(255,255,255,.05)}
     </div>
     <!-- Диагностика соединения в расширенных -->
     <div class="debug-section" style="margin:0 0 8px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rx);padding:10px 14px">
-      <div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px"><svg class="ic"><use href="#i-info"/></svg>Диагностика соединения</div>
+      <div style="font-size:11.5px;font-weight:600;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em"><svg class="ic"><use href="#i-info"/></svg>Диагностика соединения</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 16px">
         <span style="font-size:12px;color:var(--mut)">Интерфейс: <b style="color:var(--txt)" id="adv-dbg-if">${ES_WANIF}</b></span>
         <span style="font-size:12px;color:var(--mut)">Устройство: <b style="color:var(--txt)" id="adv-dbg-l3">${ES_SYS_WAN_L3}</b></span>
         <span style="font-size:12px;color:var(--mut)">Протокол: <b style="color:var(--txt)">${ES_WAN}</b></span>
-        <span style="font-size:12px;color:var(--mut)">IP: <b style="color:var(--acc)" id="adv-dbg-ip">${ES_SYS_WAN_IP}</b></span>
+        <span style="font-size:12px;color:var(--mut)">IP: <b style="color:var(--acc-on)" id="adv-dbg-ip">${ES_SYS_WAN_IP}</b></span>
         <span style="font-size:12px;color:var(--mut)">Шлюз: <b style="color:var(--txt)" id="adv-dbg-gw">${ES_SYS_WAN_GW}</b></span>
         <span style="font-size:12px;color:var(--mut)">DNS: <b style="color:var(--txt)" id="adv-dbg-dns">${ES_SYS_DNS}</b></span>
       </div>
@@ -4216,8 +4229,8 @@ function toggleTheme(){
     var t = localStorage.getItem('atlTheme') || 'dark';
     applyTheme(t);
     var _wl=document.getElementById('wizThemeLight'),_wdk=document.getElementById('wizThemeDark');
-    if(_wl) _wl.style.borderColor=t==='light'?'var(--acc)':'var(--b2)';
-    if(_wdk) _wdk.style.borderColor=t==='dark'?'var(--acc)':'var(--b2)';
+    if(_wl) _wl.style.borderColor=t==='light'?'var(--acc-on)':'var(--b2)';
+    if(_wdk) _wdk.style.borderColor=t==='dark'?'var(--acc-on)':'var(--b2)';
   }catch(e){ applyTheme('dark'); }
   document.addEventListener('DOMContentLoaded',function(){
     var cur = document.documentElement.getAttribute('data-theme') || 'dark';
